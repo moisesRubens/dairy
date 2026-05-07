@@ -1,4 +1,4 @@
-# Name: Interface Style (Estilo Paramount+)
+# Name: interface-style (Estilo Paramount+)
 
 ## Descrição
 Esta skill define a identidade visual do projeto, adotando uma estética de alto contraste, minimalista e moderna. Inspira-se na interface da Paramount+, mas adaptado para um tema claro (Light Mode) e focado em gestão de vendas.

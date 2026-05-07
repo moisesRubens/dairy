@@ -1,4 +1,4 @@
-# Name: PDV mobile
+# Name: pdv-mobile
 
 ## Descrição
 Guia técnico para o desenvolvimento de um aplicativo de Ponto de Venda (PDV) em Flutter. Focado no consumo de API FastAPI, gerenciamento de estado com Provider e interface moderna inspirada na Paramount+.
