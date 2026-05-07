@@ -1,3 +1,8 @@
+# Name: PDV mobile
+
+## Descrição
+Guia técnico para o desenvolvimento de um aplicativo de Ponto de Venda (PDV) em Flutter. Focado no consumo de API FastAPI, gerenciamento de estado com Provider e interface moderna inspirada na Paramount+.
+
 # Manual do Projeto: App PDV Flutter (Consumo de API FastAPI)
 
 Você é um desenvolvedor Flutter Sênior trabalhando em um sistema de Ponto de Venda. O app é um cliente para uma API existente em Python (FastAPI).
