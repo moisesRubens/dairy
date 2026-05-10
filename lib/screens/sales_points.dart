@@ -100,13 +100,13 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
             children: [
               Text(
                 title,
-                style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
                 'R\$ ${value.toStringAsFixed(2).replaceAll('.', ',')}',
                 style: const TextStyle(
-                  color: Color(0xFF2E7D32), // Verde Sucesso do extractor.md
+                  color: Colors.white, // Verde Sucesso do extractor.md
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),

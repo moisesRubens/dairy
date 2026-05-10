@@ -25,7 +25,7 @@ class _OrdersPageState extends State<OrdersPage> {
     } else if (status == 'Pendente') {
       color = Colors.orange[800]!;
     } else {
-      color = const Color(0xFFE74C3C);
+      color = const Color.fromARGB(255, 60, 154, 231);
     }
 
     return {
@@ -186,11 +186,11 @@ class _OrdersPageState extends State<OrdersPage> {
             decoration: BoxDecoration(color: Colors.grey[100], borderRadius: const BorderRadius.vertical(top: Radius.circular(8))),
             child: const Row(
               children: [
-                Expanded(flex: 2, child: Text('ID', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
-                Expanded(flex: 3, child: Text('DATA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
-                Expanded(flex: 2, child: Text('TOTAL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
-                Expanded(flex: 2, child: Text('STATUS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
-                SizedBox(width: 60, child: Text('AÇÕES', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
+                Expanded(flex: 2, child: Text('ID', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
+                Expanded(flex: 3, child: Text('DATA', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
+                Expanded(flex: 3, child: Text('TOTAL', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
+                Expanded(flex: 3, child: Text('STATUS', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
+                SizedBox(width: 50, child: Text('AÇÕES', textAlign: TextAlign.center, maxLines: 1, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
               ],
             ),
           ),
@@ -214,23 +214,22 @@ class _OrdersPageState extends State<OrdersPage> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           child: Row(
             children: [
-              Expanded(flex: 2, child: Text(order['id']?.toString() ?? '', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
-              Expanded(flex: 3, child: Text(date, style: const TextStyle(fontSize: 13, color: Colors.black54))),
-              Expanded(flex: 2, child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+              Expanded(flex: 2, child: Text(order['id']?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+              Expanded(flex: 3, child: Text(date, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: Colors.black54))),
+              Expanded(flex: 3, child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
               Expanded(
-                flex: 2,
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                      child: Text(status.toUpperCase(), style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
+                flex: 3,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                    child: Text(status.toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.bold)),
+                  ),
                 ),
               ),
               SizedBox(
-                width: 60,
+                width: 50,
                 child: PopupMenuButton<String>(
                   padding: EdgeInsets.zero,
                   icon: const Icon(Icons.more_vert_outlined, size: 20, color: Colors.black87),

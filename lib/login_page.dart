@@ -47,17 +47,19 @@ class _LoginPageState extends State<LoginPage> {
               // Input de Usuário
               const Text(
                 'USUÁRIO',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.1),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _userController,
-                decoration: const InputDecoration(
+                cursorColor: Colors.black,
+                decoration: InputDecoration(
                   hintText: 'Digite seu usuário',
-                  border: OutlineInputBorder(
+                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                  border: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
-                  focusedBorder: OutlineInputBorder(
+                  focusedBorder: const OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.black, width: 2),
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
@@ -68,18 +70,20 @@ class _LoginPageState extends State<LoginPage> {
               // Input de Senha
               const Text(
                 'SENHA',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.1),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _passwordController,
                 obscureText: true,
-                decoration: const InputDecoration(
+                cursorColor: Colors.black,
+                decoration: InputDecoration(
                   hintText: '********',
-                  border: OutlineInputBorder(
+                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                  border: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
-                  focusedBorder: OutlineInputBorder(
+                  focusedBorder: const OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.black, width: 2),
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
