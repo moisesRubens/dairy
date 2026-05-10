@@ -8,71 +8,170 @@ class OrdersPage extends StatefulWidget {
 }
 
 class _OrdersPageState extends State<OrdersPage> {
-  // Mock de dados para simular a API
-  final List<Map<String, dynamic>> _allOrders = List.generate(25, (index) {
-    return {
-      'id': '#${1000 + index}',
-      'date': '22/10/2023 14:${index.toString().padLeft(2, '0')}',
-      'customer': 'Cliente ${index + 1}',
-      'total': (index % 5 == 0) // A cada 5 itens, um terá desconto
-          ? (45.50 + (index * 5)) * 0.85 // 15% de desconto
-          : 45.50 + (index * 10),
-      // Alterna entre os status para exemplificar todos os cenários
-      'status': (index % 5 == 0) ? 'Desconto' : (index % 2 == 0 ? 'Finalizado' : 'Pendente'),
-    };
-  }).reversed.toList();
-
+  final TextEditingController _searchController = TextEditingController();
+  DateTime? _selectedDate;
+  String? _selectedStatus;
   int _currentPage = 0;
-  final int _pageSize = 6;
+  static const int _pageSize = 6;
 
-  List<Map<String, dynamic>> get _paginatedOrders {
-    int start = _currentPage * _pageSize;
-    int end = start + _pageSize;
-    if (start >= _allOrders.length) return [];
-    return _allOrders.sublist(start, end > _allOrders.length ? _allOrders.length : end);
+  static const List<String> _statusOptions = ['Pendente', 'Finalizado', 'Desconto'];
+
+  final List<Map<String, dynamic>> _allOrders = List.generate(20, (index) {
+    final statuses = ['Finalizado', 'Pendente', 'Desconto'];
+    final status = statuses[index % 3];
+    Color color;
+    if (status == 'Finalizado') {
+      color = const Color(0xFF2E7D32);
+    } else if (status == 'Pendente') {
+      color = Colors.orange[800]!;
+    } else {
+      color = const Color(0xFFE74C3C);
+    }
+
+    return {
+      'id': '#${1024 + index}',
+      'date': '${(index % 28) + 1}/10/2023',
+      'value': 'R\$ ${(150 + index * 25.5).toStringAsFixed(2).replaceAll('.', ',')}',
+      'status': status,
+      'color': color,
+    };
+  });
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
-
-  int get _totalPages => (_allOrders.length / _pageSize).ceil();
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 10),
-            
-            const SizedBox(height: 20),
-            
-            // Título da Seção
-            const Text(
-              'HISTÓRICO DE PEDIDOS',
-              style: TextStyle(
-                fontSize: 18, 
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 10),
+          const Text(
+            'HISTÓRICO DE PEDIDOS',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
             ),
-            const SizedBox(height: 12),
-            
-            // Tabela de Pedidos (Padrão DNA - Container Branco com borda cinza)
-            _buildOrdersTable(),
-            
-            const SizedBox(height: 16),
-            
-            // Controles de Paginação
-            _buildPaginationControls(),
-            
-            const SizedBox(height: 20),
-          ],
-        ),
+          ),
+          const SizedBox(height: 20),
+
+          // Barra de Pesquisa e Filtros
+          _buildFilterSection(),
+
+          const SizedBox(height: 24),
+
+          // Tabela de Pedidos (DataTableContainer padrão)
+          _buildOrdersTable(),
+          
+          const SizedBox(height: 20),
+          
+          // Paginação (Conforme definido no extractor.md)
+          _buildPagination(),
+        ],
       ),
     );
   }
 
+  Widget _buildFilterSection() {
+    return Column(
+      children: [
+        // Campo de Pesquisa
+        TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: 'Pesquisar por cliente ou código...',
+            prefixIcon: const Icon(Icons.search_outlined, color: Colors.black, size: 20),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.grey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.black, width: 2),
+            ),
+            isDense: true,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            // Seletor de Data
+            Expanded(
+              child: InkWell(
+                onTap: _pickDate,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined, size: 16, color: Colors.black54),
+                      const SizedBox(width: 8),
+                      Text(
+                        _selectedDate == null 
+                          ? 'Filtrar por Data' 
+                          : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Seletor de Status
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _selectedStatus,
+                isDense: true,
+                decoration: InputDecoration(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.grey),
+                  ),
+                  hintText: 'Status',
+                ),
+                items: _statusOptions.map((status) {
+                  return DropdownMenuItem(value: status, child: Text(status, style: const TextStyle(fontSize: 13)));
+                }).toList(),
+                onChanged: (val) => setState(() => _selectedStatus = val),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2022),
+      lastDate: DateTime.now(),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(primary: Colors.black, onPrimary: Colors.white, onSurface: Colors.black),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _selectedDate = picked);
+  }
+
   Widget _buildOrdersTable() {
+    final startIndex = _currentPage * _pageSize;
+    final visibleOrders = _allOrders.skip(startIndex).take(_pageSize).toList();
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -83,153 +182,162 @@ class _OrdersPageState extends State<OrdersPage> {
         children: [
           // Cabeçalho da Tabela
           Container(
-            color: Colors.grey[100],
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: Row(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.grey[100], borderRadius: const BorderRadius.vertical(top: Radius.circular(8))),
+            child: const Row(
               children: [
-                Expanded(flex: 3, child: Text('Data/Hora', style: TextStyle(fontWeight: FontWeight.bold))),
-                Expanded(flex: 2, child: Text('Total', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                Expanded(flex: 2, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                Expanded(flex: 1, child: Text('Ações', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
+                Expanded(flex: 2, child: Text('ID', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
+                Expanded(flex: 3, child: Text('DATA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
+                Expanded(flex: 2, child: Text('TOTAL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
+                Expanded(flex: 2, child: Text('STATUS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
+                SizedBox(width: 60, child: Text('AÇÕES', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
               ],
             ),
           ),
-          
-          // Lista de Pedidos Paginaos
-          ..._paginatedOrders.map((order) => _buildOrderRow(order)).toList(),
-          
-          if (_paginatedOrders.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(20),
-              child: Text('Nenhum pedido encontrado.'),
-            ),
+          const Divider(height: 1),
+          ...visibleOrders.map((order) => _buildOrderRow(
+                order,
+                order['date']?.toString() ?? '',
+                order['value']?.toString() ?? '',
+                order['status']?.toString() ?? '',
+                (order['color'] as Color?) ?? Colors.grey
+              )),
         ],
       ),
     );
   }
 
-  Widget _buildOrderRow(Map<String, dynamic> order) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
-      ),
-      child: Row(
-        children: [
-          // Data e Horário
-          Expanded(
-            flex: 3,
-            child: Text(order['date'], style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-          ),
-          
-          // Total
-          Expanded(
-            flex: 2,
-            child: Text(
-              'R\$ ${order['total'].toStringAsFixed(2).replaceAll('.', ',')}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold, 
-                color: Color(0xFF2E7D32), // Verde Sucesso do DNA
-              ),
-            ),
-          ),
-          
-          // Status
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              decoration: BoxDecoration(
-                color: () {
-                  switch (order['status']) {
-                    case 'Finalizado': return Colors.green[50];
-                    case 'Fiado': return Colors.red[50];
-                    case 'Desconto': return Colors.blue[50]; // Azul claro para o fundo
-                    case 'Desconto': return Colors.blue[50];
-                    default: return Colors.orange[50];
-                  }
-                }(),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                order['status'],
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: () {
-                    switch (order['status']) {
-                      case 'Finalizado': return Colors.green[800];
-                      case 'Fiado': return Colors.red[800];
-                      case 'Desconto': return Colors.blue[800]; // Azul escuro para o texto
-                      case 'Desconto': return Colors.blue[800];
-                      default: return Colors.orange[800];
-                    }
-                  }(),
+  Widget _buildOrderRow(Map<String, dynamic> order, String date, String value, String status, Color color) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          child: Row(
+            children: [
+              Expanded(flex: 2, child: Text(order['id']?.toString() ?? '', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+              Expanded(flex: 3, child: Text(date, style: const TextStyle(fontSize: 13, color: Colors.black54))),
+              Expanded(flex: 2, child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold))),
+              Expanded(
+                flex: 2,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                      child: Text(status.toUpperCase(), style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
               ),
-            ),
+              SizedBox(
+                width: 60,
+                child: PopupMenuButton<String>(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.more_vert_outlined, size: 20, color: Colors.black87),
+                  onSelected: (val) {
+                    if (val == 'details') _handleDetails(order);
+                    if (val == 'edit') _handleEdit(order);
+                    if (val == 'delete') _showDeleteDialog(order);
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'details',
+                      child: Row(
+                        children: [
+                          Icon(Icons.visibility_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text('Detalhes'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text('Editar'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline, size: 18, color: Color(0xFFE74C3C)),
+                          SizedBox(width: 8),
+                          Text('Excluir', style: TextStyle(color: Color(0xFFE74C3C))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          
-          // Ações (Menu discreto contendo Detalhes, Editar e Excluir)
-          Expanded(
-            flex: 1,
-            child: PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, size: 18),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onSelected: (value) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('$value pedido ${order['id']}')),
-                );
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                    value: 'Visualizar', child: ListTile(leading: Icon(Icons.visibility_outlined, size: 18), title: Text('Detalhes'), dense: true)),
-                const PopupMenuItem(
-                    value: 'Editar', child: ListTile(leading: Icon(Icons.edit, size: 18), title: Text('Editar'), dense: true)),
-                const PopupMenuItem(
-                    value: 'Excluir', child: ListTile(leading: Icon(Icons.delete, size: 18, color: Colors.red), title: Text('Excluir', style: TextStyle(color: Colors.red)), dense: true)),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+        const Divider(height: 1, indent: 12, endIndent: 12),
+      ],
     );
   }
 
-  Widget _buildPaginationControls() {
+  Widget _buildPagination() {
+    final totalPages = (_allOrders.length / _pageSize).ceil();
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          'Página ${_currentPage + 1} de $_totalPages',
-          style: TextStyle(color: Colors.grey[600]),
+        OutlinedButton(
+          onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.black,
+            side: const BorderSide(color: Colors.black),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          ),
+          child: const Text('ANTERIOR'),
         ),
-        Row(
-          children: [
-            OutlinedButton(
-              onPressed: _currentPage > 0 
-                  ? () => setState(() => _currentPage--) 
-                  : null,
-              style: OutlinedButton.styleFrom(side: BorderSide(color: Colors.black)),
-              child: const Icon(Icons.chevron_left, color: Colors.black),
-            ),
-            const SizedBox(width: 8),
-            OutlinedButton(
-              onPressed: _currentPage < _totalPages - 1 
-                  ? () => setState(() => _currentPage++) 
-                  : null,
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.black),
-                backgroundColor: Colors.black,
-              ),
-              child: const Icon(Icons.chevron_right, color: Colors.white),
-            ),
-          ],
+        const SizedBox(width: 16),
+        Text('Página ${_currentPage + 1} de $totalPages', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(width: 16),
+        OutlinedButton(
+          onPressed: _currentPage < totalPages - 1 ? () => setState(() => _currentPage++) : null,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.black,
+            side: const BorderSide(color: Colors.black),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          ),
+          child: const Text('PRÓXIMO'),
         ),
       ],
+    );
+  }
+
+  void _handleDetails(Map<String, dynamic> order) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Visualizando detalhes do pedido ${order['id']}')),
+    );
+  }
+
+  void _handleEdit(Map<String, dynamic> order) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Editando pedido ${order['id']}')),
+    );
+  }
+
+  void _showDeleteDialog(Map<String, dynamic> order) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir Pedido?'),
+        content: Text('Deseja realmente remover o pedido ${order['id']} do histórico?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR', style: TextStyle(color: Colors.black))),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('EXCLUIR', style: TextStyle(color: Color(0xFFE74C3C))),
+          ),
+        ],
+      ),
     );
   }
 }

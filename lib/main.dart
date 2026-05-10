@@ -1,3 +1,5 @@
+import 'package:dairy/screens/inventory_page.dart';
+import 'package:dairy/screens/sales_points.dart';
 import 'package:flutter/material.dart';
 import 'screens/home_page.dart';
 import 'screens/orders_page.dart';
@@ -38,8 +40,8 @@ class _MainShellState extends State<MainShell> {
   final List<Widget> _pages = [
     const HomePage(),                   // Index 0: Home
     const OrdersPage(), // Index 1: Pedidos
-    const Center(child: Text('Estoque')), // Index 2: Estoque
-    const Center(child: Text('Perfis')),  // Index 3: Perfis
+    const InventoryPage(), // Index 2: Estoque
+    const SalesPointsPage(),  // Index 3: Perfis
   ];
 
   @override
