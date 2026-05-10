@@ -11,7 +11,9 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
-
+.ai/extractor_v2.md
+.ai/generator_v2.md
+.ai/validator_v2.md
 # IntelliJ related
 *.iml
 *.ipr

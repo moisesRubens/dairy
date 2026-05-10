@@ -1,24 +1,42 @@
+import 'package:dairy/screens/inventory_page.dart';
+import 'package:dairy/screens/sales_points.dart';
+import 'package:dairy/screens/login_page.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'screens/home_page.dart';
-// import 'orders_page.dart'; // Importe as outras quando criar
+import 'screens/orders_page.dart';
 
 void main() {
   runApp(const MyApp());
 }
+
+final GoRouter _router = GoRouter(
+  initialLocation: '/login',
+  routes: [
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => const LoginPage(),
+    ),
+    GoRoute(
+      path: '/',
+      builder: (context, state) => const MainShell(),
+    ),
+  ],
+);
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
+      routerConfig: _router,
       debugShowCheckedModeBanner: false,
       title: 'Fazenda Boa Esperança',
       theme: ThemeData(
-        primarySwatch: Colors.green,
+        primaryColor: Colors.black,
         useMaterial3: true,
       ),
-      home: const MainShell(),
     );
   }
 }
@@ -36,9 +54,9 @@ class _MainShellState extends State<MainShell> {
   // Lista de páginas que preencherão o Body
   final List<Widget> _pages = [
     const HomePage(),                   // Index 0: Home
-    const Center(child: Text('Pedidos')), // Index 1: Pedidos
-    const Center(child: Text('Estoque')), // Index 2: Estoque
-    const Center(child: Text('Perfis')),  // Index 3: Perfis
+    const OrdersPage(), // Index 1: Pedidos
+    const InventoryPage(), // Index 2: Estoque
+    const SalesPointsPage(),  // Index 3: Perfis
   ];
 
   @override
@@ -92,14 +110,19 @@ class AppDrawer extends StatelessWidget {
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.account_circle),
-            title: const Text('Perfil'),
+            leading: const Icon(Icons.account_circle_outlined, color: Colors.black),
+            title: const Text('PERFIL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
             onTap: () => Navigator.pop(context),
           ),
           ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Sair'),
-            onTap: () => Navigator.pop(context),
+            leading: const Icon(Icons.logout_outlined, color: Color(0xFFE74C3C)),
+            title: const Text(
+              'SAIR',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFE74C3C)),
+            ),
+            onTap: () {
+              context.go('/login');
+            },
           ),
         ],
       ),
