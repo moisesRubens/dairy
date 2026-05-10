@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/home_page.dart';
+import 'screens/orders_page.dart';
 // import 'orders_page.dart'; // Importe as outras quando criar
 
 void main() {
@@ -36,7 +37,7 @@ class _MainShellState extends State<MainShell> {
   // Lista de páginas que preencherão o Body
   final List<Widget> _pages = [
     const HomePage(),                   // Index 0: Home
-    const Center(child: Text('Pedidos')), // Index 1: Pedidos
+    const OrdersPage(), // Index 1: Pedidos
     const Center(child: Text('Estoque')), // Index 2: Estoque
     const Center(child: Text('Perfis')),  // Index 3: Perfis
   ];
