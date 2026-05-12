@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../services/auth_service.dart'; // Import the AuthService
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -11,12 +12,52 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _userController = TextEditingController();
   final _passwordController = TextEditingController();
+  final AuthService _authService = AuthService(); // Initialize AuthService
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
     _userController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _login() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null; // Clear previous errors
+    });
+
+    final String username = _userController.text;
+    final String password = _passwordController.text;
+
+    try {
+      // Call the login method from AuthService
+      final salePoint = await _authService.login(username, password);
+
+      if (salePoint != null) {
+        // Login successful, navigate to the main screen
+        if (mounted) {
+          context.go('/'); // Use context.go to navigate to the main route
+        }
+      } else {
+        // Login failed (e.g., invalid credentials, 401 Unauthorized from API)
+        setState(() {
+          _errorMessage = 'Credenciais inválidas. Tente novamente.';
+        });
+      }
+    } catch (e) {
+      // Handle network errors or other exceptions
+      setState(() {
+        _errorMessage = 'Ocorreu um erro ao tentar fazer login. Verifique sua conexão.';
+      });
+      print("Erro no login: $e"); // For debugging purposes
+    } finally {
+      setState(() {
+        _isLoading = false; // Always stop loading
+      });
+    }
   }
 
   @override
@@ -47,19 +88,17 @@ class _LoginPageState extends State<LoginPage> {
               // Input de Usuário
               const Text(
                 'USUÁRIO',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.1),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _userController,
-                cursorColor: Colors.black,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'Digite seu usuário',
-                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                  border: const OutlineInputBorder(
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
-                  focusedBorder: const OutlineInputBorder(
+                  focusedBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.black, width: 2),
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
@@ -70,20 +109,18 @@ class _LoginPageState extends State<LoginPage> {
               // Input de Senha
               const Text(
                 'SENHA',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.1),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _passwordController,
                 obscureText: true,
-                cursorColor: Colors.black,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: '********',
-                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                  border: const OutlineInputBorder(
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
-                  focusedBorder: const OutlineInputBorder(
+                  focusedBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.black, width: 2),
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
@@ -91,12 +128,20 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 32),
 
+              // Display error message if any
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Color(0xFFE74C3C), fontWeight: FontWeight.bold), // Red for error
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+
               // Botão de Login
               ElevatedButton(
-                onPressed: () {
-                  // Simulação de login e navegação para a Home
-                  context.go('/'); 
-                },
+                onPressed: _isLoading ? null : _login, // Disable button when loading
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
                   foregroundColor: Colors.white,
@@ -104,12 +149,18 @@ class _LoginPageState extends State<LoginPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 0,
+                  elevation: _isLoading ? 0 : 2, // Reduce elevation when loading
                 ),
-                child: const Text(
-                  'ENTRAR',
-                  style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
-                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text(
+                        'ENTRAR',
+                        style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                      ),
               ),
             ],
           ),
