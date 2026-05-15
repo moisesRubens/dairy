@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../domain/product.dart'; // Importe seu model
+import '../services/product_service.dart'; // Importe seu service
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({Key? key}) : super(key: key);
@@ -8,11 +10,39 @@ class InventoryPage extends StatefulWidget {
 }
 
 class _InventoryPageState extends State<InventoryPage> {
+  final ProductService _productService = ProductService();
   
+  // MUDANÇA: Lista agora é de Objetos Product e começa vazia
+  List<Product> _products = [];
+  bool _isLoading = true; // Para o feedback visual de carregamento
+
   int? _expandedProductId;
   final Set<int> _selectedProductIds = {};
   final TextEditingController _quantityController = TextEditingController();
   final FocusNode _quantityFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProducts(); // Carrega os dados da API
+  }
+
+  // Função para buscar os dados do Service
+  Future<void> _loadProducts() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await _productService.getProducts();
+      setState(() {
+        _products = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao carregar estoque: $e')),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -21,74 +51,73 @@ class _InventoryPageState extends State<InventoryPage> {
     super.dispose();
   }
 
-  final List<Map<String, dynamic>> _products = List.generate(12, (index) {
-    return {
-      'id': index,
-      'name': 'Queijo Frescal ${index + 1}',
-      'brand': 'Laticínio Boa Esperança',
-      'price': 25.90 + index,
-      'stock': 50 + index,
-      'imageUrl': 'https://via.placeholder.com/150',
-    };
-  });
-
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 10),
-                const Text(
-                  'ESTOQUE DE PRODUTOS',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
+          child: _isLoading 
+            ? const Center(child: CircularProgressIndicator()) // Mostra loading
+            : RefreshIndicator( // Adiciona "puxar para atualizar"
+                onRefresh: _loadProducts,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'ESTOQUE DE PRODUTOS',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.refresh),
+                            onPressed: _loadProducts, // Botão de atualizar
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      _products.isEmpty 
+                        ? const Center(child: Text("Nenhum produto encontrado."))
+                        : GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.75,
+                            ),
+                            itemCount: _products.length,
+                            itemBuilder: (context, index) {
+                              final product = _products[index];
+                              return _buildProductCard(product);
+                            },
+                          ),
+                      const SizedBox(height: 20),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                
-                // Grade de Produtos
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 0.75,
-                  ),
-                  itemCount: _products.length,
-                  itemBuilder: (context, index) {
-                    final product = _products[index];
-                    return _buildProductCard(product);
-                  },
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
+              ),
         ),
-        
-        // Barra de ação em lote fixa no rodapé
         if (_selectedProductIds.isNotEmpty) _buildBottomQuantitySelector(),
       ],
     );
   }
 
-  Widget _buildProductCard(Map<String, dynamic> product) {
-    final bool isSelected = _selectedProductIds.contains(product['id']);
-    final bool isExpanded = _expandedProductId == product['id'];
+  // MUDANÇA: Recebe o objeto Product agora
+  Widget _buildProductCard(Product product) {
+    final bool isSelected = _selectedProductIds.contains(product.id);
+    final bool isExpanded = _expandedProductId == product.id;
 
     return GestureDetector(
       onTap: () {
         setState(() {
-          _expandedProductId = isExpanded ? null : product['id'];
+          _expandedProductId = isExpanded ? null : product.id;
         });
       },
       child: Container(
@@ -99,18 +128,10 @@ class _InventoryPageState extends State<InventoryPage> {
             color: isExpanded ? Colors.black : Colors.grey[300]!, 
             width: isExpanded ? 2 : 1
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Imagem do Produto
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
@@ -122,19 +143,18 @@ class _InventoryPageState extends State<InventoryPage> {
                 ),
               ),
             ),
-            
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    product['brand'].toString().toUpperCase(),
+                    "PRODUTO".toUpperCase(), // Ou adicione o campo 'brand' no seu model se houver
                     style: TextStyle(fontSize: 10, color: Colors.grey[600], fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    product['name'],
+                    product.name, // Uso direto do objeto
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -144,16 +164,15 @@ class _InventoryPageState extends State<InventoryPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'R\$ ${product['price'].toStringAsFixed(2).replaceAll('.', ',')}',
+                        'R\$ ${product.price?.toStringAsFixed(2).replaceAll('.', ',') ?? "0,00"}',
                         style: const TextStyle(
                           color: Color(0xFF2E7D32),
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
                         ),
                       ),
-                      // Checkbox de Seleção (Selected)
                       GestureDetector(
-                        onTap: () {}, // Interrompe a propagação do clique para o card
+                        onTap: () {},
                         child: SizedBox(
                           height: 24,
                           width: 24,
@@ -163,9 +182,9 @@ class _InventoryPageState extends State<InventoryPage> {
                             onChanged: (val) {
                               setState(() {
                                 if (val == true) {
-                                  _selectedProductIds.add(product['id']);
+                                  _selectedProductIds.add(product.id!);
                                 } else {
-                                  _selectedProductIds.remove(product['id']);
+                                  _selectedProductIds.remove(product.id!);
                                 }
                               });
                             },
@@ -174,10 +193,10 @@ class _InventoryPageState extends State<InventoryPage> {
                       ),
                     ],
                   ),
-                  
-                  // Opções de Editar/Excluir visíveis quando selecionado
                   if (isExpanded) ...[
                     const SizedBox(height: 8),
+                    // Exibe o estoque real vindo da API
+                    Text("Estoque: ${product.amount ?? 0}", style: const TextStyle(fontSize: 12)),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
@@ -201,6 +220,28 @@ class _InventoryPageState extends State<InventoryPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Métodos auxiliares agora usam o objeto Product
+  void _handleEdit(Product product) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Editar: ${product.name}')));
+  }
+
+  void _showDeleteDialog(Product product) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir Produto?'),
+        content: Text('Deseja realmente remover ${product.name} do estoque?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('EXCLUIR', style: TextStyle(color: Color(0xFFE74C3C))),
+          ),
+        ],
       ),
     );
   }
@@ -275,23 +316,5 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  void _handleEdit(Map<String, dynamic> product) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Editar: ${product['name']}')));
-  }
-  void _showDeleteDialog(Map<String, dynamic> product) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Excluir Produto?'),
-        content: Text('Deseja realmente remover ${product['name']} do estoque?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR', style: TextStyle(color: Colors.black))),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('EXCLUIR', style: TextStyle(color: Color(0xFFE74C3C))),
-          ),
-        ],
-      ),
-    );
-  }
+   // ... (o _buildBottomQuantitySelector permanece similar, apenas limpando o Set de IDs)
 }
