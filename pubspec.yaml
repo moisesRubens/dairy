@@ -38,6 +38,7 @@ dependencies:
   http: ^1.2.1
   # Para guardar o Token e dados do SalePoint localmente
   shared_preferences: ^2.2.3
+  jwt_decoder: ^2.0.1
 
 dev_dependencies:
   flutter_test:
