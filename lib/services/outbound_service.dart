@@ -9,7 +9,7 @@ class OutboundService {
   Future<bool> createOutbound(List<int> productIds, double quantity) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
-    final salePointId = prefs.getInt('sale_point_id'); // O 'sub' que pegamos!
+    final salePointId = prefs.getInt('sale_point_id'); 
 
     // URL: http://127.0.0.1:8000/auth/1/outbounds
     final url = Uri.parse('$baseUrl/auth/$salePointId/outbounds');
