@@ -5,6 +5,8 @@ class Product {
   final double? totalValue;  // Note que no SQL é Float, no Dart usamos double
   double? price;
   int? amount;
+  double? kg;
+  double? liters;
 
   Product({
     this.id,

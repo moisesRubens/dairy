@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../domain/product.dart'; // Importe seu model
 import '../services/product_service.dart'; // Importe seu service
+import '../services/outbound_service.dart'; // Importe o OutboundService
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({Key? key}) : super(key: key);
@@ -11,6 +12,7 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   final ProductService _productService = ProductService();
+  final OutboundService _outboundService = OutboundService(); // Instância do OutboundService
   
   // MUDANÇA: Lista agora é de Objetos Product e começa vazia
   List<Product> _products = [];
@@ -296,25 +298,58 @@ class _InventoryPageState extends State<InventoryPage> {
           const SizedBox(width: 12),
           ElevatedButton(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Estoque de $count item(s) atualizado!'),
-                  backgroundColor: const Color(0xFF2E7D32),
-                ),
-              );
-              setState(() => _selectedProductIds.clear());
-              _quantityController.clear();
+              _handleOutboundCreation(); // Chama o novo método para lidar com a lógica
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2E7D32),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
             ),
-            child: const Text('ADD', style: TextStyle(color: Colors.white)),
+            child: const Text('REGISTRAR SAÍDA', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-   // ... (o _buildBottomQuantitySelector permanece similar, apenas limpando o Set de IDs)
+  Future<void> _handleOutboundCreation() async {
+    final String quantityText = _quantityController.text;
+    final int? quantity = int.tryParse(quantityText);
+
+    if (quantity == null || quantity <= 0) {
+      _showSnackBar('Por favor, insira uma quantidade válida.', Colors.red);
+      return;
+    }
+
+    if (_selectedProductIds.isEmpty) {
+      _showSnackBar('Selecione pelo menos um produto para registrar a saída.', Colors.red);
+      return;
+    }
+
+    final Map<Product, int> outboundsMap = {};
+    for (int productId in _selectedProductIds) {
+      final product = _products.firstWhere((p) => p.id == productId);
+      outboundsMap[product] = quantity;
+    }
+
+    final bool success = await _outboundService.createOutbound(outboundsMap);
+
+    if (success) {
+      _showSnackBar('Saída de ${outboundsMap.length} item(s) registrada com sucesso!', const Color(0xFF2E7D32));
+      setState(() => _selectedProductIds.clear());
+      _quantityController.clear();
+      _quantityFocusNode.unfocus(); // Esconde o teclado
+      _loadProducts(); // Recarrega os produtos para refletir a mudança no estoque
+    } else {
+      _showSnackBar('Falha ao registrar saída. Verifique a conexão ou tente novamente.', Colors.red);
+    }
+  }
+
+  void _showSnackBar(String message, Color backgroundColor) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: backgroundColor,
+      ),
+    );
+  }
 }
