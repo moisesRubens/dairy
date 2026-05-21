@@ -30,7 +30,6 @@ class ProductService {
         List<Product> products = List<Product>.from(
           dynamicList.map((data) => Product.fromJson(data))
         );
-        
         return products;
       } else {
         print("Erro ao buscar produtos: ${response.statusCode}");
