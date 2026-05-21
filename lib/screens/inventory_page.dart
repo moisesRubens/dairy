@@ -115,6 +115,19 @@ class _InventoryPageState extends State<InventoryPage> {
   Widget _buildProductCard(Product product) {
     final bool isSelected = _selectedProductIds.contains(product.id);
     final bool isExpanded = _expandedProductId == product.id;
+    num? quantity;
+    String unit = '';
+
+    if (product.amount != null) {
+      quantity = product.amount;
+      unit = "un";
+    } else if (product.kg != null) {
+      quantity = product.kg;
+      unit = "kg";
+    } else if (product.liters != null) {
+      quantity = product.liters;
+      unit = "L";
+    }
 
     return GestureDetector(
       onTap: () {
@@ -150,10 +163,6 @@ class _InventoryPageState extends State<InventoryPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "PRODUTO".toUpperCase(), // Ou adicione o campo 'brand' no seu model se houver
-                    style: TextStyle(fontSize: 10, color: Colors.grey[600], fontWeight: FontWeight.bold),
-                  ),
                   const SizedBox(height: 4),
                   Text(
                     product.name, // Uso direto do objeto
@@ -171,6 +180,13 @@ class _InventoryPageState extends State<InventoryPage> {
                           color: Color(0xFF2E7D32),
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
+                        ),
+                      ),
+                      Text(
+                        '$unit ${quantity is int ? quantity : quantity?.toStringAsFixed(2).replaceAll('.', ',') ?? "0"}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
                       ),
                       GestureDetector(
@@ -198,7 +214,7 @@ class _InventoryPageState extends State<InventoryPage> {
                   if (isExpanded) ...[
                     const SizedBox(height: 8),
                     // Exibe o estoque real vindo da API
-                    Text("Estoque: ${product.amount ?? 0}", style: const TextStyle(fontSize: 12)),
+                    Text("Estoque: ${quantity ?? 0} $unit", style: const TextStyle(fontSize: 12)),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
