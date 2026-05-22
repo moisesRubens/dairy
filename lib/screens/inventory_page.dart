@@ -165,7 +165,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 children: [
                   const SizedBox(height: 4),
                   Text(
-                    product.name, // Uso direto do objeto
+                    product.name, 
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -344,6 +344,13 @@ class _InventoryPageState extends State<InventoryPage> {
     final Map<Product, int> outboundsMap = {};
     for (int productId in _selectedProductIds) {
       final product = _products.firstWhere((p) => p.id == productId);
+      if (product.amount != null) {
+        product.amount = 0;
+      } else if (product.kg != null) {
+        product.kg = 0;
+      } else if (product.liters != null) {
+        product.liters = 0;
+      }
       outboundsMap[product] = quantity;
     }
 
@@ -352,9 +359,12 @@ class _InventoryPageState extends State<InventoryPage> {
     if (success) {
       _showSnackBar('Saída de ${outboundsMap.length} item(s) registrada com sucesso!', const Color(0xFF2E7D32));
       setState(() => _selectedProductIds.clear());
+      //deve mandar a lista de produtos retirados pra a home_page.dart
+
       _quantityController.clear();
       _quantityFocusNode.unfocus(); // Esconde o teclado
-      _loadProducts(); // Recarrega os produtos para refletir a mudança no estoque
+      _loadProducts();
+      //se sucess, deve mandar a lista de produtos pra carregar na screens/home_page.dart 
     } else {
       _showSnackBar('Falha ao registrar saída. Verifique a conexão ou tente novamente.', Colors.red);
     }

@@ -2,21 +2,22 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dairy/domain/product.dart';
+import 'package:flutter/material.dart';
+
 
 class OutboundService {
   static const String baseUrl = "http://127.0.0.1:8000";
+  static ValueNotifier<List<Product>> saleProductsNotifier = ValueNotifier<List<Product>>([]);
+  static List<Product> get saleProducts => saleProductsNotifier.value;
 
-  /// Envia as retiradas de produtos para a API.
-  /// [outboundsQuantity] chave: objeto Product, valor: quantidade retirada.
+
   Future<bool> createOutbound(Map<Product, int> outboundsQuantity, {String? observacao}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
     final salePointId = prefs.getInt('sale_point_id'); 
 
-    // Monta a URL correta dinamicamente
     final url = Uri.parse('$baseUrl/auth/$salePointId/outbounds');
 
-    // 1. Transforma o Map<Product, int> na lista de mapas que a API espera
     final List<Map<String, dynamic>> produtosJson = outboundsQuantity.entries.map((entry) {
       Product product = entry.key;
       String unit; 
@@ -36,7 +37,6 @@ class OutboundService {
       };
     }).toList();
 
-    // 2. Monta o corpo final da requisição (Payload)
     final Map<String, dynamic> requestBody = {
       "produtos": produtosJson,
       "observacao": observacao ?? "", 
@@ -55,6 +55,32 @@ class OutboundService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
+        final currentProducts = saleProductsNotifier.value;
+        final newProducts = outboundsQuantity.keys.toList();
+        final allProducts = {...currentProducts, ...newProducts}.toList();
+        
+        final uniqueProductsMap = {for (var p in allProducts) p.id: p};
+
+        for (var entry in outboundsQuantity.entries) {
+          Product produtoEnviado = entry.key;
+          double quantidadeSomar = entry.value.toDouble();
+          
+          if (!uniqueProductsMap.containsKey(produtoEnviado.id)) {
+            uniqueProductsMap[produtoEnviado.id] = produtoEnviado;
+          }
+          
+          final p = uniqueProductsMap[produtoEnviado.id]!;
+          
+          if (p.amount != null) {
+            p.amount = (p.amount ?? 0) + quantidadeSomar.toInt();
+          } else if (p.kg != null) {
+            p.kg = (p.kg ?? 0) + quantidadeSomar;
+          } else if (p.liters != null) {
+            p.liters = (p.liters ?? 0) + quantidadeSomar;
+          }
+          print(p);
+        }
+        saleProductsNotifier.value = uniqueProductsMap.values.toList();
         return true;
       } else {
         print("Erro na API: ${response.statusCode} - ${response.body}");
