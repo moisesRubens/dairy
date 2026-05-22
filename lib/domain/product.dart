@@ -15,6 +15,11 @@ class Product {
     this.liters
   });
 
+  @override
+  String toString() {
+    return 'Product(id: $id, amount: $amount, kg: $kg, liters: $liters)';
+  }
+
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
       id: json['id'] as int?,
