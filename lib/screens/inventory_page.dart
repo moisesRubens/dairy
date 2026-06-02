@@ -344,13 +344,6 @@ class _InventoryPageState extends State<InventoryPage> {
     final Map<Product, int> outboundsMap = {};
     for (int productId in _selectedProductIds) {
       final product = _products.firstWhere((p) => p.id == productId);
-      if (product.amount != null) {
-        product.amount = 0;
-      } else if (product.kg != null) {
-        product.kg = 0;
-      } else if (product.liters != null) {
-        product.liters = 0;
-      }
       outboundsMap[product] = quantity;
     }
 

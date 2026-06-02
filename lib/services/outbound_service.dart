@@ -55,32 +55,31 @@ class OutboundService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        final currentProducts = saleProductsNotifier.value;
-        final newProducts = outboundsQuantity.keys.toList();
-        final allProducts = {...currentProducts, ...newProducts}.toList();
-        
-        final uniqueProductsMap = {for (var p in allProducts) p.id: p};
+        final currentList = List<Product>.from(saleProductsNotifier.value);
 
-        for (var entry in outboundsQuantity.entries) {
-          Product produtoEnviado = entry.key;
-          double quantidadeSomar = entry.value.toDouble();
+        outboundsQuantity.forEach((product, quantity) {
+          final existingIndex = currentList.indexWhere((p) => p.id == product.id);
           
-          if (!uniqueProductsMap.containsKey(produtoEnviado.id)) {
-            uniqueProductsMap[produtoEnviado.id] = produtoEnviado;
+          if (existingIndex != -1) {
+            // Se já existe na Home, apenas soma a quantidade
+            final p = currentList[existingIndex];
+            if (p.amount != null) p.amount = (p.amount ?? 0) + quantity;
+            else if (p.kg != null) p.kg = (p.kg ?? 0) + quantity.toDouble();
+            else if (p.liters != null) p.liters = (p.liters ?? 0) + quantity.toDouble();
+          } else {
+            // Se é novo, adiciona uma cópia com a quantidade inicial
+            currentList.add(Product(
+              id: product.id,
+              name: product.name,
+              price: product.price,
+              amount: product.amount != null ? quantity : null,
+              kg: product.kg != null ? quantity.toDouble() : null,
+              liters: product.liters != null ? quantity.toDouble() : null,
+            ));
           }
-          
-          final p = uniqueProductsMap[produtoEnviado.id]!;
-          
-          if (p.amount != null) {
-            p.amount = (p.amount ?? 0) + quantidadeSomar.toInt();
-          } else if (p.kg != null) {
-            p.kg = (p.kg ?? 0) + quantidadeSomar;
-          } else if (p.liters != null) {
-            p.liters = (p.liters ?? 0) + quantidadeSomar;
-          }
-          print(p);
-        }
-        saleProductsNotifier.value = uniqueProductsMap.values.toList();
+        });
+
+        saleProductsNotifier.value = currentList;
         return true;
       } else {
         print("Erro na API: ${response.statusCode} - ${response.body}");

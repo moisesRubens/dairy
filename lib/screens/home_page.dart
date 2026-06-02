@@ -10,6 +10,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final OutboundService _outboundService = OutboundService();
+
   double dailyRevenue = 1250.50;
 
   List<Product> products = [];
@@ -24,11 +26,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadProducts() async {
-    setState(() => _isLoading = true);
-    setState(() {
-      products = OutboundService.saleProducts;
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
   }
 
   void addToCart(Product product, double quantity) {
