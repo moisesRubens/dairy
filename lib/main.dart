@@ -2,6 +2,7 @@ import 'package:dairy/screens/inventory_page.dart';
 import 'package:dairy/screens/sales_points.dart';
 import 'package:dairy/screens/login_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'screens/home_page.dart';
 import 'screens/orders_page.dart';
@@ -9,7 +10,8 @@ import 'services/auth_service.dart';
 import 'config/theme.dart';
 
 void main() {
-  runApp(const MyApp());
+  // ProviderScope habilita o Riverpod em toda a árvore de widgets.
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 final AuthService _authService = AuthService();
