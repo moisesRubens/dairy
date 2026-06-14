@@ -5,13 +5,25 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'screens/home_page.dart';
 import 'screens/orders_page.dart';
+import 'services/auth_service.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
+final AuthService _authService = AuthService();
+
 final GoRouter _router = GoRouter(
   initialLocation: '/login',
+  // Auto-login: se a sessão é válida, pula a tela de login; se não é,
+  // qualquer rota protegida é redirecionada de volta para /login.
+  redirect: (context, state) async {
+    final loggedIn = await _authService.isLoggedIn();
+    final goingToLogin = state.matchedLocation == '/login';
+    if (!loggedIn) return goingToLogin ? null : '/login';
+    if (goingToLogin) return '/';
+    return null;
+  },
   routes: [
     GoRoute(
       path: '/login',
@@ -120,8 +132,9 @@ class AppDrawer extends StatelessWidget {
               'SAIR',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFE74C3C)),
             ),
-            onTap: () {
-              context.go('/login');
+            onTap: () async {
+              await _authService.logout();
+              if (context.mounted) context.go('/login');
             },
           ),
         ],

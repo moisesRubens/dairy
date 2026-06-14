@@ -6,6 +6,9 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import '../config/api_config.dart';
 
 class AuthService {
+  static const String tokenKey = 'access_token';
+  static const String salePointKey = 'sale_point_id';
+
   Future<SalePoint?> login(String username, String password) async {
     final url = Uri.parse('${ApiConfig.baseUrl}/auth/login');
 
@@ -27,8 +30,8 @@ class AuthService {
           int userId = int.parse(decodedToken['sub']);
 
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('access_token', token);
-          await prefs.setInt('sale_point_id', userId);
+          await prefs.setString(tokenKey, token);
+          await prefs.setInt(salePointKey, userId);
 
           // 2. Se a sua API NÃO retorna o campo 'user', você não pode chamá-lo.
           // Se quiser navegar para a home apenas com o token, retorne um objeto fictício ou ajuste a API.
@@ -48,5 +51,26 @@ class AuthService {
       print("Erro na requisição: $e");
       return null;
     }
+  }
+
+  /// Retorna true se há um token salvo e ainda não expirado.
+  /// Usado para o auto-login (pular a tela de login se a sessão é válida).
+  Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(tokenKey);
+    if (token == null || token.isEmpty) return false;
+    try {
+      return !JwtDecoder.isExpired(token);
+    } catch (_) {
+      // Token malformado: trata como deslogado.
+      return false;
+    }
+  }
+
+  /// Encerra a sessão removendo o token e o id do ponto de venda do device.
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(tokenKey);
+    await prefs.remove(salePointKey);
   }
 }
