@@ -63,9 +63,13 @@ class OutboundService {
           if (existingIndex != -1) {
             // Se já existe na Home, apenas soma a quantidade
             final p = currentList[existingIndex];
-            if (p.amount != null) p.amount = (p.amount ?? 0) + quantity;
-            else if (p.kg != null) p.kg = (p.kg ?? 0) + quantity.toDouble();
-            else if (p.liters != null) p.liters = (p.liters ?? 0) + quantity.toDouble();
+            if (p.amount != null) {
+              p.amount = (p.amount ?? 0) + quantity;
+            } else if (p.kg != null) {
+              p.kg = (p.kg ?? 0) + quantity.toDouble();
+            } else if (p.liters != null) {
+              p.liters = (p.liters ?? 0) + quantity.toDouble();
+            }
           } else {
             // Se é novo, adiciona uma cópia com a quantidade inicial
             currentList.add(Product(
@@ -82,11 +86,11 @@ class OutboundService {
         saleProductsNotifier.value = currentList;
         return true;
       } else {
-        print("Erro na API: ${response.statusCode} - ${response.body}");
+        debugPrint("Erro na API: ${response.statusCode} - ${response.body}");
         return false;
       }
     } catch (e) {
-      print("Erro de conexão ao criar saída: $e");
+      debugPrint("Erro de conexão ao criar saída: $e");
       return false;
     }
   }

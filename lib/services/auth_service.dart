@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/sale_point.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -48,7 +49,7 @@ class AuthService {
         return null; 
       }
     } catch (e) {
-      print("Erro na requisição: $e");
+      debugPrint("Erro na requisição: $e");
       return null;
     }
   }

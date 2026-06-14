@@ -4,7 +4,7 @@ import '../services/product_service.dart'; // Importe seu service
 import '../services/outbound_service.dart'; // Importe o OutboundService
 
 class InventoryPage extends StatefulWidget {
-  const InventoryPage({Key? key}) : super(key: key);
+  const InventoryPage({super.key});
 
   @override
   State<InventoryPage> createState() => _InventoryPageState();
