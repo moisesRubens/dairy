@@ -34,11 +34,13 @@ class _InventoryPageState extends State<InventoryPage> {
     setState(() => _isLoading = true);
     try {
       final data = await _productService.getProducts();
+      if (!mounted) return;
       setState(() {
         _products = data;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro ao carregar estoque: $e')),
