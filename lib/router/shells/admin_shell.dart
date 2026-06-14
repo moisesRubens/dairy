@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/metrics/presentation/dashboard_page.dart';
+import '../../features/stock_requests/presentation/approvals_page.dart';
 import 'app_shell_scaffold.dart';
 
 /// Shell do ADMIN: Painel · Aprovações · Estoque · Pontos.
@@ -23,14 +25,12 @@ StatefulShellRoute adminShellRoute() {
       StatefulShellBranch(routes: [
         GoRoute(
             path: '/admin/dashboard',
-            builder: (c, s) => const ShellPlaceholder(
-                title: 'Painel do Administrador', icon: Icons.dashboard_outlined)),
+            builder: (c, s) => const DashboardPage()),
       ]),
       StatefulShellBranch(routes: [
         GoRoute(
             path: '/admin/requests',
-            builder: (c, s) => const ShellPlaceholder(
-                title: 'Aprovações de Estoque', icon: Icons.inbox_outlined)),
+            builder: (c, s) => const ApprovalsPage()),
       ]),
       StatefulShellBranch(routes: [
         GoRoute(
