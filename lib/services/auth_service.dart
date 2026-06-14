@@ -1,16 +1,13 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../domain/sale_point.dart'; 
+import '../domain/sale_point.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import '../config/api_config.dart';
 
 class AuthService {
-  // Windows/macOS/Linux desktop e iOS Simulator: 127.0.0.1.
-  // Emulador Android: trocar por 10.0.2.2. Device físico: IP da LAN do PC.
-  static const String baseUrl = "http://127.0.0.1:8000";
-
   Future<SalePoint?> login(String username, String password) async {
-    final url = Uri.parse('$baseUrl/auth/login');
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/login');
 
     try {
       final response = await http.post(

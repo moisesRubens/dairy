@@ -2,11 +2,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dairy/domain/product.dart';
+import 'package:dairy/config/api_config.dart';
 import 'package:flutter/material.dart';
 
 
 class OutboundService {
-  static const String baseUrl = "http://127.0.0.1:8000";
   static ValueNotifier<List<Product>> saleProductsNotifier = ValueNotifier<List<Product>>([]);
   static List<Product> get saleProducts => saleProductsNotifier.value;
 
@@ -16,7 +16,7 @@ class OutboundService {
     final token = prefs.getString('access_token');
     final salePointId = prefs.getInt('sale_point_id'); 
 
-    final url = Uri.parse('$baseUrl/auth/$salePointId/outbounds');
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/$salePointId/outbounds');
 
     final List<Map<String, dynamic>> produtosJson = outboundsQuantity.entries.map((entry) {
       Product product = entry.key;
