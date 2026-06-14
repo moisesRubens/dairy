@@ -51,6 +51,24 @@ class AppSpacing {
   static const double xl = 24;
 }
 
+/// Atalhos de cores que se adaptam ao tema (claro/escuro) a partir do
+/// contexto. Evita repetir `Theme.of(context).brightness == ...` nas telas.
+extension AppThemeContext on BuildContext {
+  bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
+
+  /// Fundo de cards/containers (branco no claro, cinza-escuro no escuro).
+  Color get cardSurface =>
+      isDarkMode ? AppColors.surfaceDark : AppColors.white;
+
+  /// Fundo de cabeçalhos de tabela e áreas levemente destacadas.
+  Color get mutedSurface =>
+      isDarkMode ? AppColors.surfaceMutedDark : AppColors.surfaceMutedLight;
+
+  /// Cor de bordas finas.
+  Color get borderColor =>
+      isDarkMode ? AppColors.borderDark : AppColors.borderLight;
+}
+
 /// Temas claro e escuro do app, derivados dos tokens acima.
 class AppTheme {
   AppTheme._();
@@ -114,6 +132,17 @@ class AppTheme {
         ),
       ),
       dividerColor: borderColor,
+      cardColor: isDark ? AppColors.surfaceDark : AppColors.white,
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.white,
+        selectedItemColor: isDark ? AppColors.white : AppColors.black,
+        unselectedItemColor: AppColors.grey,
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+      ),
+      drawerTheme: DrawerThemeData(
+        backgroundColor: isDark ? AppColors.surfaceDark : AppColors.white,
+      ),
       snackBarTheme: const SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
       ),

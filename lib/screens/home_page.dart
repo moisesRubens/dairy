@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../domain/product.dart';
 import '../services/outbound_service.dart';
+import '../config/theme.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -121,14 +122,14 @@ class _HomePageState extends State<HomePage> {
     builder: (context, produtosAtualizados, child) {
       return Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey[300]!),
+          color: context.cardSurface,
+          borderRadius: BorderRadius.circular(AppRadii.table),
+          border: Border.all(color: context.borderColor),
         ),
         child: Column(
           children: [
             Container(
-              color: Colors.grey[100],
+              color: context.mutedSurface,
               padding: const EdgeInsets.all(12),
               child: const Row(
                 children: [
@@ -177,9 +178,9 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: Colors.grey[300]!,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[300]!),
+            color: context.mutedSurface,
+            borderRadius: BorderRadius.circular(AppRadii.table),
+            border: Border.all(color: context.borderColor),
           ),
           child: Column(
             children: [

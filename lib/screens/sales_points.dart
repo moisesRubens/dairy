@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 
 class SalesPointsPage extends StatefulWidget {
   const SalesPointsPage({super.key});
@@ -122,9 +123,9 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
   Widget _buildProductTable(List<dynamic> products) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        color: context.cardSurface,
+        borderRadius: BorderRadius.circular(AppRadii.table),
+        border: Border.all(color: context.borderColor),
       ),
       child: Column(
         children: [
@@ -132,7 +133,7 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: context.mutedSurface,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
             ),
             child: const Row(

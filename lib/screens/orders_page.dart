@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/theme.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -25,7 +26,8 @@ class _OrdersPageState extends State<OrdersPage> {
     } else if (status == 'Pendente') {
       color = Colors.orange[800]!;
     } else {
-      color = const Color.fromARGB(255, 60, 154, 231);
+      // "Desconto": magenta — evita azul (proibido pelo design system).
+      color = const Color(0xFFAD1457);
     }
 
     return {
@@ -108,18 +110,18 @@ class _OrdersPageState extends State<OrdersPage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: context.borderColor),
+                    borderRadius: BorderRadius.circular(AppRadii.table),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today_outlined, size: 16, color: Colors.black54),
+                      Icon(Icons.calendar_today_outlined, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       const SizedBox(width: 8),
                       Text(
-                        _selectedDate == null 
-                          ? 'Filtrar por Data' 
+                        _selectedDate == null
+                          ? 'Filtrar por Data'
                           : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                        style: const TextStyle(fontSize: 13),
                       ),
                     ],
                   ),
@@ -174,16 +176,16 @@ class _OrdersPageState extends State<OrdersPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        color: context.cardSurface,
+        borderRadius: BorderRadius.circular(AppRadii.table),
+        border: Border.all(color: context.borderColor),
       ),
       child: Column(
         children: [
           // Cabeçalho da Tabela
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.grey[100], borderRadius: const BorderRadius.vertical(top: Radius.circular(8))),
+            decoration: BoxDecoration(color: context.mutedSurface, borderRadius: const BorderRadius.vertical(top: Radius.circular(8))),
             child: const Row(
               children: [
                 Expanded(flex: 2, child: Text('ID', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
@@ -289,8 +291,8 @@ class _OrdersPageState extends State<OrdersPage> {
         OutlinedButton(
           onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
           style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.black,
-            side: const BorderSide(color: Colors.black),
+            foregroundColor: Theme.of(context).colorScheme.onSurface,
+            side: BorderSide(color: Theme.of(context).colorScheme.onSurface),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           ),
           child: const Text('ANTERIOR'),
@@ -301,8 +303,8 @@ class _OrdersPageState extends State<OrdersPage> {
         OutlinedButton(
           onPressed: _currentPage < totalPages - 1 ? () => setState(() => _currentPage++) : null,
           style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.black,
-            side: const BorderSide(color: Colors.black),
+            foregroundColor: Theme.of(context).colorScheme.onSurface,
+            side: BorderSide(color: Theme.of(context).colorScheme.onSurface),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           ),
           child: const Text('PRÓXIMO'),

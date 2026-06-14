@@ -61,7 +61,6 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.scaffoldLight,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -77,8 +76,10 @@ class _LoginPageState extends State<LoginPage> {
                     child: Container(
                       width: 88,
                       height: 88,
-                      decoration: const BoxDecoration(
-                        color: AppColors.black,
+                      decoration: BoxDecoration(
+                        color: context.isDarkMode
+                            ? AppColors.green
+                            : AppColors.black,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.agriculture,
