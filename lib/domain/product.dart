@@ -25,9 +25,9 @@ class Product {
       id: json['id'] as int?,
       name: json['name'] as String,
       price: (json['price'] as num?)?.toDouble(),
-      kg: (json['kg'] as double?)?.toDouble(),
-      amount: (json['amount'] as int?)?.toInt(),
-      liters: (json['liters'] as double?)?.toDouble()
+      kg: (json['kg'] as num?)?.toDouble(),
+      amount: (json['amount'] as num?)?.toInt(),
+      liters: (json['liters'] as num?)?.toDouble()
     );
   }
 
