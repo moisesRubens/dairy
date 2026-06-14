@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'screens/home_page.dart';
 import 'screens/orders_page.dart';
 import 'services/auth_service.dart';
+import 'config/theme.dart';
 
 void main() {
   runApp(const MyApp());
@@ -45,10 +46,11 @@ class MyApp extends StatelessWidget {
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
       title: 'Fazenda Boa Esperança',
-      theme: ThemeData(
-        primaryColor: Colors.black,
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      // Tema escuro já definido; será ativado (ThemeMode.system) quando todas
+      // as telas estiverem adaptadas para cores do tema.
+      themeMode: ThemeMode.light,
     );
   }
 }
