@@ -106,42 +106,53 @@ class _PendingApprovalsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const orange = Color(0xFFEF6C00);
+    // Borda uniforme + faixa lateral interna (não usar Border não-uniforme
+    // com borderRadius — o Flutter não pinta e o card desaparece).
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadii.revenue),
       onTap: () => context.go('/admin/requests'),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: context.cardSurface,
-          borderRadius: BorderRadius.circular(AppRadii.revenue),
-          border: Border(
-            left: const BorderSide(color: orange, width: 4),
-            top: BorderSide(color: context.borderColor),
-            right: BorderSide(color: context.borderColor),
-            bottom: BorderSide(color: context.borderColor),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.revenue),
+        child: Container(
+          decoration: BoxDecoration(
+            color: context.cardSurface,
+            borderRadius: BorderRadius.circular(AppRadii.revenue),
+            border: Border.all(color: context.borderColor),
           ),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.warning_amber_rounded, color: orange),
-            const SizedBox(width: AppSpacing.md),
-            const Expanded(
-              child: Text('Aprovações pendentes',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                Container(width: 5, color: orange),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: orange),
+                        const SizedBox(width: AppSpacing.md),
+                        const Expanded(
+                          child: Text('Aprovações pendentes',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: orange.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(AppRadii.table),
+                          ),
+                          child: Text('$count',
+                              style: const TextStyle(
+                                  color: orange, fontWeight: FontWeight.bold)),
+                        ),
+                        const Icon(Icons.chevron_right, color: AppColors.grey),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: orange.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(AppRadii.table),
-              ),
-              child: Text('$count',
-                  style: const TextStyle(
-                      color: orange, fontWeight: FontWeight.bold)),
-            ),
-            const Icon(Icons.chevron_right, color: AppColors.grey),
-          ],
+          ),
         ),
       ),
     );
