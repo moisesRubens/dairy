@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/cart/presentation/pos_home_page.dart';
+import '../../features/orders/presentation/vendor_orders_page.dart';
+import '../../features/stock_requests/presentation/request_stock_page.dart';
 import 'app_shell_scaffold.dart';
 
 /// Shell do VENDEDOR: PDV · Pedidos · Meu Estoque · Solicitar.
@@ -21,16 +24,12 @@ StatefulShellRoute vendorShellRoute() {
     ),
     branches: [
       StatefulShellBranch(routes: [
-        GoRoute(
-            path: '/vendor/home',
-            builder: (c, s) => const ShellPlaceholder(
-                title: 'PDV — Venda', icon: Icons.point_of_sale_outlined)),
+        GoRoute(path: '/vendor/home', builder: (c, s) => const PosHomePage()),
       ]),
       StatefulShellBranch(routes: [
         GoRoute(
             path: '/vendor/orders',
-            builder: (c, s) => const ShellPlaceholder(
-                title: 'Meus Pedidos', icon: Icons.shopping_cart_outlined)),
+            builder: (c, s) => const VendorOrdersPage()),
       ]),
       StatefulShellBranch(routes: [
         GoRoute(
@@ -41,8 +40,7 @@ StatefulShellRoute vendorShellRoute() {
       StatefulShellBranch(routes: [
         GoRoute(
             path: '/vendor/request',
-            builder: (c, s) => const ShellPlaceholder(
-                title: 'Solicitar Estoque', icon: Icons.add_box_outlined)),
+            builder: (c, s) => const RequestStockPage()),
       ]),
     ],
   );
