@@ -22,12 +22,17 @@ class OrderRepository {
   }
 
   /// Persiste uma venda. [items] = [{product_id, amount|kg|liters: qtd}].
-  /// O total é calculado no servidor a partir do preço do produto.
+  /// O total é calculado no servidor. [clientId] vincula a venda a um cliente
+  /// (opcional — null = venda rápida/anônima).
   Future<Order> createOrder(
-      int salePointId, List<Map<String, dynamic>> items) async {
+      int salePointId, List<Map<String, dynamic>> items,
+      {int? clientId}) async {
     try {
-      final response = await _dio.post('/auth/$salePointId/order',
-          data: {'description': 'Venda no PDV', 'items': items});
+      final response = await _dio.post('/auth/$salePointId/order', data: {
+        'description': 'Venda no PDV',
+        'client_id': ?clientId,
+        'items': items,
+      });
       return Order.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
       throw toApiException(e);

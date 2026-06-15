@@ -4,6 +4,8 @@ import '../../../config/theme.dart';
 import '../../../core/format/formatters.dart';
 import '../../../core/network/dio_provider.dart';
 import '../../../shared/widgets/async_value_widget.dart';
+import '../../clients/data/client_repository.dart';
+import '../../clients/domain/client.dart';
 import '../../orders/data/order_repository.dart';
 import '../../products/data/product_repository.dart';
 import '../../products/domain/product.dart';
@@ -211,6 +213,44 @@ class _CartSectionState extends ConsumerState<_CartSection> {
     }
   }
 
+  Future<void> _pickClient() async {
+    List<Client> clients = const [];
+    try {
+      clients = await ref.read(clientRepositoryProvider).list();
+    } catch (_) {}
+    if (!mounted) return;
+    final result = await showModalBottomSheet<Object?>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.flash_on, color: AppColors.green),
+              title: const Text('Venda rápida (sem cliente)'),
+              onTap: () => Navigator.pop(ctx, 'rapida'),
+            ),
+            const Divider(height: 1),
+            for (final c in clients)
+              ListTile(
+                leading: const Icon(Icons.person_outline),
+                title: Text(c.name),
+                subtitle: (c.phone != null && c.phone!.isNotEmpty)
+                    ? Text(c.phone!)
+                    : null,
+                onTap: () => Navigator.pop(ctx, c),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (result == 'rapida') {
+      ref.read(selectedClientProvider.notifier).state = null;
+    } else if (result is Client) {
+      ref.read(selectedClientProvider.notifier).state = result;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
@@ -224,6 +264,8 @@ class _CartSectionState extends ConsumerState<_CartSection> {
       ),
       child: Column(
         children: [
+          _ClientSelector(onPick: _pickClient),
+          const Divider(height: 1),
           for (final line in cart)
             Padding(
               padding:
@@ -294,4 +336,25 @@ class _CartSectionState extends ConsumerState<_CartSection> {
 
   String _fmtQty(double q) =>
       q == q.roundToDouble() ? q.toInt().toString() : q.toString();
+}
+
+class _ClientSelector extends ConsumerWidget {
+  final VoidCallback onPick;
+  const _ClientSelector({required this.onPick});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final client = ref.watch(selectedClientProvider);
+    return ListTile(
+      leading: Icon(client == null ? Icons.flash_on : Icons.person,
+          color: AppColors.green),
+      title: Text(client?.name ?? 'Venda rápida (sem cliente)',
+          style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Text(client == null
+          ? 'Toque para vincular um cliente'
+          : 'Cliente vinculado à venda'),
+      trailing: const Icon(Icons.chevron_right, color: AppColors.grey),
+      onTap: onPick,
+    );
+  }
 }

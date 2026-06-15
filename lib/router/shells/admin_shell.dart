@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/clients/presentation/clients_page.dart';
 import '../../features/metrics/presentation/dashboard_page.dart';
 import '../../features/stock_requests/presentation/approvals_page.dart';
 import 'app_shell_scaffold.dart';
@@ -16,7 +17,7 @@ StatefulShellRoute adminShellRoute() {
         BottomNavigationBarItem(
             icon: Icon(Icons.inbox_outlined), label: 'Aprovações'),
         BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined), label: 'Estoque'),
+            icon: Icon(Icons.people_alt_outlined), label: 'Clientes'),
         BottomNavigationBarItem(
             icon: Icon(Icons.storefront_outlined), label: 'Pontos'),
       ],
@@ -34,10 +35,7 @@ StatefulShellRoute adminShellRoute() {
       ]),
       StatefulShellBranch(routes: [
         GoRoute(
-            path: '/admin/stock',
-            builder: (c, s) => const ShellPlaceholder(
-                title: 'Estoque (todos os pontos)',
-                icon: Icons.inventory_2_outlined)),
+            path: '/admin/clients', builder: (c, s) => const ClientsPage()),
       ]),
       StatefulShellBranch(routes: [
         GoRoute(

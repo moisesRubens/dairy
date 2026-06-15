@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../clients/data/client_repository.dart';
 import '../../orders/data/order_repository.dart';
 import '../../products/domain/product.dart';
 
@@ -52,9 +53,13 @@ class Cart extends Notifier<List<CartLine>> {
             })
         .toList();
 
-    await ref.read(orderRepositoryProvider).createOrder(salePointId, items);
+    final clientId = ref.read(selectedClientProvider)?.id;
+    await ref
+        .read(orderRepositoryProvider)
+        .createOrder(salePointId, items, clientId: clientId);
 
     clear();
+    ref.read(selectedClientProvider.notifier).state = null;
     ref.invalidate(ordersProvider);
   }
 }
