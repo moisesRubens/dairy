@@ -32,6 +32,15 @@ class ClientRepository {
     }
   }
 
+  Future<ClientHistory> history(int clientId) async {
+    try {
+      final response = await _dio.get('/clients/$clientId/orders');
+      return ClientHistory.fromJson(response.data as Map<String, dynamic>);
+    } catch (e) {
+      throw toApiException(e);
+    }
+  }
+
   Future<List<ClientRanking>> ranking() async {
     try {
       final response = await _dio.get('/clients/ranking');
@@ -52,6 +61,10 @@ final clientsProvider = FutureProvider.autoDispose<List<Client>>(
 
 final clientRankingProvider = FutureProvider.autoDispose<List<ClientRanking>>(
     (ref) => ref.watch(clientRepositoryProvider).ranking());
+
+final clientHistoryProvider =
+    FutureProvider.autoDispose.family<ClientHistory, int>(
+        (ref, clientId) => ref.watch(clientRepositoryProvider).history(clientId));
 
 /// Cliente selecionado para vincular à próxima venda (PDV). Null = venda rápida.
 final selectedClientProvider = StateProvider<Client?>((ref) => null);

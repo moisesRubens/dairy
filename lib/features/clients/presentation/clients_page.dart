@@ -7,6 +7,7 @@ import '../../../shared/widgets/async_value_widget.dart';
 import '../../auth/application/auth_controller.dart';
 import '../data/client_repository.dart';
 import '../domain/client.dart';
+import 'client_history_page.dart';
 
 class ClientsPage extends ConsumerWidget {
   const ClientsPage({super.key});
@@ -149,7 +150,12 @@ class ClientsPage extends ConsumerWidget {
                               ? Text('Ponto #${c.salePointId}',
                                   style: const TextStyle(
                                       color: AppColors.grey, fontSize: 12))
-                              : null,
+                              : const Icon(Icons.chevron_right,
+                                  color: AppColors.grey),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => ClientHistoryPage(client: c)),
+                          ),
                         ),
                     ],
                   ),

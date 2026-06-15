@@ -25,6 +25,39 @@ class Client {
       );
 }
 
+class HistoryOrder {
+  final int id;
+  final double totalValue;
+  final DateTime? date;
+  HistoryOrder({required this.id, required this.totalValue, this.date});
+
+  factory HistoryOrder.fromJson(Map<String, dynamic> json) => HistoryOrder(
+        id: (json['id'] as num).toInt(),
+        totalValue: (json['total_value'] as num?)?.toDouble() ?? 0,
+        date: json['date'] != null
+            ? DateTime.tryParse(json['date'].toString())
+            : null,
+      );
+}
+
+class ClientHistory {
+  final int ordersCount;
+  final double totalSpent;
+  final List<HistoryOrder> orders;
+  ClientHistory(
+      {required this.ordersCount,
+      required this.totalSpent,
+      required this.orders});
+
+  factory ClientHistory.fromJson(Map<String, dynamic> json) => ClientHistory(
+        ordersCount: (json['orders_count'] as num?)?.toInt() ?? 0,
+        totalSpent: (json['total_spent'] as num?)?.toDouble() ?? 0,
+        orders: ((json['orders'] as List?) ?? [])
+            .map((e) => HistoryOrder.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
 class ClientRanking {
   final int clientId;
   final String name;
