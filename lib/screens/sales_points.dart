@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class SalesPointsPage extends StatefulWidget {
-  const SalesPointsPage({Key? key}) : super(key: key);
+  const SalesPointsPage({super.key});
 
   @override
   State<SalesPointsPage> createState() => _SalesPointsPageState();
@@ -57,7 +57,7 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
             ),
           ),
           const SizedBox(height: 20),
-          ..._salesPoints.map((point) => _buildSalesPointSection(point)).toList(),
+          ..._salesPoints.map((point) => _buildSalesPointSection(point)),
         ],
       ),
     );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class OrdersPage extends StatefulWidget {
-  const OrdersPage({Key? key}) : super(key: key);
+  const OrdersPage({super.key});
 
   @override
   State<OrdersPage> createState() => _OrdersPageState();
@@ -130,7 +130,7 @@ class _OrdersPageState extends State<OrdersPage> {
             // Seletor de Status
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _selectedStatus,
+                initialValue: _selectedStatus,
                 isDense: true,
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -223,7 +223,7 @@ class _OrdersPageState extends State<OrdersPage> {
                   alignment: Alignment.centerLeft,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                    decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                    decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                     child: Text(status.toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.bold)),
                   ),
                 ),

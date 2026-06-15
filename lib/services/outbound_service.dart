@@ -2,11 +2,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dairy/domain/product.dart';
+import 'package:dairy/config/api_config.dart';
 import 'package:flutter/material.dart';
 
 
 class OutboundService {
-  static const String baseUrl = "http://127.0.0.1:8000";
   static ValueNotifier<List<Product>> saleProductsNotifier = ValueNotifier<List<Product>>([]);
   static List<Product> get saleProducts => saleProductsNotifier.value;
 
@@ -16,7 +16,7 @@ class OutboundService {
     final token = prefs.getString('access_token');
     final salePointId = prefs.getInt('sale_point_id'); 
 
-    final url = Uri.parse('$baseUrl/auth/$salePointId/outbounds');
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/$salePointId/outbounds');
 
     final List<Map<String, dynamic>> produtosJson = outboundsQuantity.entries.map((entry) {
       Product product = entry.key;
@@ -63,9 +63,13 @@ class OutboundService {
           if (existingIndex != -1) {
             // Se já existe na Home, apenas soma a quantidade
             final p = currentList[existingIndex];
-            if (p.amount != null) p.amount = (p.amount ?? 0) + quantity;
-            else if (p.kg != null) p.kg = (p.kg ?? 0) + quantity.toDouble();
-            else if (p.liters != null) p.liters = (p.liters ?? 0) + quantity.toDouble();
+            if (p.amount != null) {
+              p.amount = (p.amount ?? 0) + quantity;
+            } else if (p.kg != null) {
+              p.kg = (p.kg ?? 0) + quantity.toDouble();
+            } else if (p.liters != null) {
+              p.liters = (p.liters ?? 0) + quantity.toDouble();
+            }
           } else {
             // Se é novo, adiciona uma cópia com a quantidade inicial
             currentList.add(Product(
@@ -82,11 +86,11 @@ class OutboundService {
         saleProductsNotifier.value = currentList;
         return true;
       } else {
-        print("Erro na API: ${response.statusCode} - ${response.body}");
+        debugPrint("Erro na API: ${response.statusCode} - ${response.body}");
         return false;
       }
     } catch (e) {
-      print("Erro de conexão ao criar saída: $e");
+      debugPrint("Erro de conexão ao criar saída: $e");
       return false;
     }
   }

@@ -1,16 +1,17 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../domain/sale_point.dart'; 
+import '../domain/sale_point.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import '../config/api_config.dart';
 
 class AuthService {
-  // Windows/macOS/Linux desktop e iOS Simulator: 127.0.0.1.
-  // Emulador Android: trocar por 10.0.2.2. Device físico: IP da LAN do PC.
-  static const String baseUrl = "http://127.0.0.1:8000";
+  static const String tokenKey = 'access_token';
+  static const String salePointKey = 'sale_point_id';
 
   Future<SalePoint?> login(String username, String password) async {
-    final url = Uri.parse('$baseUrl/auth/login');
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/login');
 
     try {
       final response = await http.post(
@@ -30,8 +31,8 @@ class AuthService {
           int userId = int.parse(decodedToken['sub']);
 
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('access_token', token);
-          await prefs.setInt('sale_point_id', userId);
+          await prefs.setString(tokenKey, token);
+          await prefs.setInt(salePointKey, userId);
 
           // 2. Se a sua API NÃO retorna o campo 'user', você não pode chamá-lo.
           // Se quiser navegar para a home apenas com o token, retorne um objeto fictício ou ajuste a API.
@@ -48,8 +49,29 @@ class AuthService {
         return null; 
       }
     } catch (e) {
-      print("Erro na requisição: $e");
+      debugPrint("Erro na requisição: $e");
       return null;
     }
+  }
+
+  /// Retorna true se há um token salvo e ainda não expirado.
+  /// Usado para o auto-login (pular a tela de login se a sessão é válida).
+  Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(tokenKey);
+    if (token == null || token.isEmpty) return false;
+    try {
+      return !JwtDecoder.isExpired(token);
+    } catch (_) {
+      // Token malformado: trata como deslogado.
+      return false;
+    }
+  }
+
+  /// Encerra a sessão removendo o token e o id do ponto de venda do device.
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(tokenKey);
+    await prefs.remove(salePointKey);
   }
 }

@@ -4,7 +4,7 @@ import '../services/product_service.dart'; // Importe seu service
 import '../services/outbound_service.dart'; // Importe o OutboundService
 
 class InventoryPage extends StatefulWidget {
-  const InventoryPage({Key? key}) : super(key: key);
+  const InventoryPage({super.key});
 
   @override
   State<InventoryPage> createState() => _InventoryPageState();
@@ -34,11 +34,13 @@ class _InventoryPageState extends State<InventoryPage> {
     setState(() => _isLoading = true);
     try {
       final data = await _productService.getProducts();
+      if (!mounted) return;
       setState(() {
         _products = data;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro ao carregar estoque: $e')),

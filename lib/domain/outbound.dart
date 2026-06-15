@@ -4,7 +4,7 @@ class Outbound {
   final int? id;
   final int salePointId;
   final int productId;
-  int? quantity_to_add;
+  int? quantityToAdd;
   final double takenQuantity;
   final String unidade;
   final String? observacao;
@@ -78,7 +78,7 @@ class Outbound {
   Map<String, dynamic> toMap() {
     return {
       'product_id': productId,
-      'quantidade': quantity_to_add,
+      'quantidade': quantityToAdd,
       'unidade': unidade 
     };
   }

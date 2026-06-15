@@ -3,15 +3,13 @@ import '../domain/product.dart';
 import '../services/outbound_service.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  final OutboundService _outboundService = OutboundService();
-
   double dailyRevenue = 1250.50;
 
   List<Product> products = [];
@@ -159,7 +157,7 @@ class _HomePageState extends State<HomePage> {
                     controller.clear();
                   },
                 );
-              }).toList(),
+              }),
           ],
         ),
       );

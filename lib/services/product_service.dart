@@ -1,13 +1,13 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/product.dart'; // IMPORTANTE: Importe seu model aqui
+import '../config/api_config.dart';
 
 class ProductService {
-  static const String baseUrl = "http://127.0.0.1:8000";
-
   Future<List<Product>> getProducts() async {
-    final url = Uri.parse('$baseUrl/products');
+    final url = Uri.parse('${ApiConfig.baseUrl}/products');
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
 
@@ -32,11 +32,11 @@ class ProductService {
         );
         return products;
       } else {
-        print("Erro ao buscar produtos: ${response.statusCode}");
+        debugPrint("Erro ao buscar produtos: ${response.statusCode}");
         return [];
       }
     } catch (e) {
-      print("Erro na requisição de produtos: $e");
+      debugPrint("Erro na requisição de produtos: $e");
       return [];
     }
   }
