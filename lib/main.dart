@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'screens/home_page.dart';
 import 'screens/orders_page.dart';
 import 'services/auth_service.dart';
+import 'config/theme.dart';
 
 void main() {
   runApp(const MyApp());
@@ -45,10 +46,10 @@ class MyApp extends StatelessWidget {
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
       title: 'Fazenda Boa Esperança',
-      theme: ThemeData(
-        primaryColor: Colors.black,
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      // Segue o tema do sistema operacional (claro/escuro).
+      themeMode: ThemeMode.system,
     );
   }
 }
@@ -74,26 +75,18 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
         shape: Border(bottom: BorderSide(color: Colors.grey[800]!, width: 2)),
-        title: const Text('Fazenda Boa Esperança', style: TextStyle(color: Colors.white)),
+        title: const Text('Fazenda Boa Esperança'),
       ),
-      drawer: const AppDrawer(), // Componentize seu Drawer também!
+      drawer: const AppDrawer(),
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Pedidos'),
@@ -122,7 +115,7 @@ class AppDrawer extends StatelessWidget {
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.account_circle_outlined, color: Colors.black),
+            leading: const Icon(Icons.account_circle_outlined),
             title: const Text('PERFIL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
             onTap: () => Navigator.pop(context),
           ),

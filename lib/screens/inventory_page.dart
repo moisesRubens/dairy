@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../domain/product.dart'; // Importe seu model
 import '../services/product_service.dart'; // Importe seu service
 import '../services/outbound_service.dart'; // Importe o OutboundService
+import '../config/theme.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -139,10 +140,10 @@ class _InventoryPageState extends State<InventoryPage> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          color: context.cardSurface,
+          borderRadius: BorderRadius.circular(AppRadii.card),
           border: Border.all(
-            color: isExpanded ? Colors.black : Colors.grey[300]!, 
+            color: isExpanded ? AppColors.green : context.borderColor,
             width: isExpanded ? 2 : 1
           ),
         ),
@@ -152,7 +153,7 @@ class _InventoryPageState extends State<InventoryPage> {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
+                  color: context.mutedSurface,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
                 ),
                 child: const Center(
@@ -198,7 +199,7 @@ class _InventoryPageState extends State<InventoryPage> {
                           width: 24,
                           child: Checkbox(
                             value: isSelected,
-                            activeColor: Colors.black,
+                            activeColor: AppColors.green,
                             onChanged: (val) {
                               setState(() {
                                 if (val == true) {
