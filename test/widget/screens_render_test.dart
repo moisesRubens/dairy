@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dairy/config/theme.dart';
-import 'package:dairy/screens/login_page.dart';
+import 'package:dairy/features/auth/presentation/login_page.dart';
 import 'package:dairy/screens/home_page.dart';
 import 'package:dairy/screens/orders_page.dart';
 import 'package:dairy/screens/sales_points.dart';
@@ -10,10 +11,13 @@ import 'package:dairy/screens/sales_points.dart';
 /// (claro e escuro). É a rede de segurança da migração para o design system:
 /// se algum widget tivesse cor/layout inválido no dark mode, o teste falharia.
 void main() {
+  // ProviderScope porque a LoginPage agora é um ConsumerWidget (Riverpod).
   Widget wrap(Widget child, ThemeData theme) {
-    return MaterialApp(
-      theme: theme,
-      home: child is LoginPage ? child : Scaffold(body: child),
+    return ProviderScope(
+      child: MaterialApp(
+        theme: theme,
+        home: child is LoginPage ? child : Scaffold(body: child),
+      ),
     );
   }
 

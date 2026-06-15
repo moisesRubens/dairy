@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import '../services/auth_service.dart';
-import '../config/theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../config/theme.dart';
+import '../../../core/network/dio_provider.dart';
+import '../application/auth_controller.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends ConsumerState<LoginPage> {
   final _userController = TextEditingController();
   final _passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
@@ -30,31 +30,22 @@ class _LoginPageState extends State<LoginPage> {
       _isLoading = true;
       _errorMessage = null;
     });
-
     try {
-      final salePoint = await _authService.login(
-        _userController.text.trim(),
-        _passwordController.text,
-      );
-
-      if (!mounted) return;
-
-      if (salePoint != null) {
-        context.go('/');
-      } else {
-        setState(() {
-          _errorMessage = 'Credenciais inválidas. Tente novamente.';
-        });
-      }
+      await ref.read(authControllerProvider.notifier).login(
+            _userController.text,
+            _passwordController.text,
+          );
+      // O redirect do GoRouter leva para a área do papel automaticamente.
     } catch (e) {
       if (!mounted) return;
+      final api = toApiException(e);
       setState(() {
-        _errorMessage = 'Erro ao conectar. Verifique sua conexão.';
+        _errorMessage = api.statusCode == 401 || api.statusCode == 404
+            ? 'Credenciais inválidas. Tente novamente.'
+            : 'Erro ao conectar. Verifique sua conexão.';
       });
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -71,7 +62,6 @@ class _LoginPageState extends State<LoginPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Badge de logo
                   Center(
                     child: Container(
                       width: 88,
@@ -101,13 +91,11 @@ class _LoginPageState extends State<LoginPage> {
                     'Ponto de Venda',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 13,
-                      letterSpacing: 1.0,
-                      color: Colors.grey[600],
-                    ),
+                        fontSize: 13,
+                        letterSpacing: 1.0,
+                        color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 48),
-
                   _buildLabel('USUÁRIO'),
                   const SizedBox(height: AppSpacing.sm),
                   TextField(
@@ -120,7 +108,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-
                   _buildLabel('SENHA'),
                   const SizedBox(height: AppSpacing.sm),
                   TextField(
@@ -141,7 +128,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-
                   if (_errorMessage != null)
                     Container(
                       margin: const EdgeInsets.only(bottom: AppSpacing.lg),
@@ -159,15 +145,13 @@ class _LoginPageState extends State<LoginPage> {
                             child: Text(
                               _errorMessage!,
                               style: const TextStyle(
-                                color: AppColors.red,
-                                fontWeight: FontWeight.bold,
-                              ),
+                                  color: AppColors.red,
+                                  fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
                       ),
                     ),
-
                   ElevatedButton(
                     onPressed: _isLoading ? null : _login,
                     child: _isLoading
@@ -175,15 +159,12 @@ class _LoginPageState extends State<LoginPage> {
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator(
-                              color: AppColors.white,
-                              strokeWidth: 2,
-                            ),
+                                color: AppColors.white, strokeWidth: 2),
                           )
-                        : const Text(
-                            'ENTRAR',
+                        : const Text('ENTRAR',
                             style: TextStyle(
-                                fontWeight: FontWeight.bold, letterSpacing: 1.2),
-                          ),
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2)),
                   ),
                 ],
               ),
