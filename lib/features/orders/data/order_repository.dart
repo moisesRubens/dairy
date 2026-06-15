@@ -26,11 +26,12 @@ class OrderRepository {
   /// (opcional — null = venda rápida/anônima).
   Future<Order> createOrder(
       int salePointId, List<Map<String, dynamic>> items,
-      {int? clientId}) async {
+      {int? clientId, String? paymentMethod}) async {
     try {
       final response = await _dio.post('/auth/$salePointId/order', data: {
         'description': 'Venda no PDV',
         'client_id': ?clientId,
+        'payment_method': ?paymentMethod,
         'items': items,
       });
       return Order.fromJson(response.data as Map<String, dynamic>);

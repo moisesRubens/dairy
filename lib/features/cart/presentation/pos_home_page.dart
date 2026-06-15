@@ -294,6 +294,8 @@ class _CartSectionState extends ConsumerState<_CartSection> {
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               children: [
+                const _PaymentSelector(),
+                const SizedBox(height: AppSpacing.md),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -336,6 +338,66 @@ class _CartSectionState extends ConsumerState<_CartSection> {
 
   String _fmtQty(double q) =>
       q == q.roundToDouble() ? q.toInt().toString() : q.toString();
+}
+
+class _PaymentSelector extends ConsumerWidget {
+  const _PaymentSelector();
+
+  static const _methods = [
+    ('dinheiro', 'Dinheiro', Icons.payments_outlined),
+    ('pix', 'Pix', Icons.qr_code_2),
+    ('cartao', 'Cartão', Icons.credit_card),
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(selectedPaymentProvider);
+    return Row(
+      children: [
+        for (final m in _methods) ...[
+          Expanded(
+            child: GestureDetector(
+              onTap: () =>
+                  ref.read(selectedPaymentProvider.notifier).state = m.$1,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: selected == m.$1
+                      ? AppColors.green.withValues(alpha: 0.12)
+                      : context.cardSurface,
+                  borderRadius: BorderRadius.circular(AppRadii.table),
+                  border: Border.all(
+                    color: selected == m.$1
+                        ? AppColors.green
+                        : context.borderColor,
+                    width: selected == m.$1 ? 2 : 1,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Icon(m.$3,
+                        size: 20,
+                        color: selected == m.$1
+                            ? AppColors.green
+                            : AppColors.grey),
+                    const SizedBox(height: 2),
+                    Text(m.$2,
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: selected == m.$1
+                                ? AppColors.green
+                                : null)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (m != _methods.last) const SizedBox(width: AppSpacing.sm),
+        ],
+      ],
+    );
+  }
 }
 
 class _ClientSelector extends ConsumerWidget {

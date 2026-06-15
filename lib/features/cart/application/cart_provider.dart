@@ -54,14 +54,22 @@ class Cart extends Notifier<List<CartLine>> {
         .toList();
 
     final clientId = ref.read(selectedClientProvider)?.id;
-    await ref
-        .read(orderRepositoryProvider)
-        .createOrder(salePointId, items, clientId: clientId);
+    final payment = ref.read(selectedPaymentProvider);
+    await ref.read(orderRepositoryProvider).createOrder(
+          salePointId,
+          items,
+          clientId: clientId,
+          paymentMethod: payment,
+        );
 
     clear();
     ref.read(selectedClientProvider.notifier).state = null;
+    ref.read(selectedPaymentProvider.notifier).state = 'dinheiro';
     ref.invalidate(ordersProvider);
   }
 }
 
 final cartProvider = NotifierProvider<Cart, List<CartLine>>(Cart.new);
+
+/// Forma de pagamento selecionada para a próxima venda (PDV).
+final selectedPaymentProvider = StateProvider<String>((ref) => 'dinheiro');
