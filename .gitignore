@@ -45,4 +45,4 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-/android/app/src/lib/config/api_config.dart
+lib/config/api_config.dart
