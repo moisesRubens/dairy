@@ -70,6 +70,111 @@ class ClientsPage extends ConsumerWidget {
     }
   }
 
+  Future<void> _editClient(
+      BuildContext context, WidgetRef ref, Client client) async {
+    final nameCtrl = TextEditingController(text: client.name);
+    final phoneCtrl = TextEditingController(text: client.phone ?? '');
+    final emailCtrl = TextEditingController(text: client.email ?? '');
+    final notesCtrl = TextEditingController(text: client.notes ?? '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Editar cliente'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                  controller: nameCtrl,
+                  autofocus: true,
+                  decoration: const InputDecoration(labelText: 'Nome *')),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Telefone')),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'E-mail')),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                  controller: notesCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Observações')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('CANCELAR')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('SALVAR')),
+        ],
+      ),
+    );
+    if (ok != true || nameCtrl.text.trim().isEmpty) return;
+    try {
+      await ref.read(clientRepositoryProvider).update(
+            client.id,
+            name: nameCtrl.text.trim(),
+            phone: phoneCtrl.text.trim(),
+            email: emailCtrl.text.trim(),
+            notes: notesCtrl.text.trim(),
+          );
+      ref.invalidate(clientsProvider);
+      ref.invalidate(clientRankingProvider);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Cliente atualizado'),
+          backgroundColor: AppColors.green));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(toApiException(e).message),
+          backgroundColor: AppColors.red));
+    }
+  }
+
+  Future<void> _deleteClient(
+      BuildContext context, WidgetRef ref, Client client) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Excluir cliente'),
+        content: Text('Excluir "${client.name}"? Esta ação não pode ser '
+            'desfeita.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('CANCELAR')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('EXCLUIR',
+                  style: TextStyle(color: AppColors.red))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(clientRepositoryProvider).delete(client.id);
+      ref.invalidate(clientsProvider);
+      ref.invalidate(clientRankingProvider);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Cliente excluído'),
+          backgroundColor: AppColors.green));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(toApiException(e).message),
+          backgroundColor: AppColors.red));
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isAdmin = ref.watch(currentRoleProvider) == UserRole.admin;
@@ -146,12 +251,45 @@ class ClientsPage extends ConsumerWidget {
                             if (c.phone != null && c.phone!.isNotEmpty) c.phone!,
                             if (c.email != null && c.email!.isNotEmpty) c.email!,
                           ].join('  ·  ')),
-                          trailing: isAdmin
-                              ? Text('Ponto #${c.salePointId}',
-                                  style: const TextStyle(
-                                      color: AppColors.grey, fontSize: 12))
-                              : const Icon(Icons.chevron_right,
-                                  color: AppColors.grey),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isAdmin)
+                                Text('Ponto #${c.salePointId}',
+                                    style: const TextStyle(
+                                        color: AppColors.grey, fontSize: 12)),
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert,
+                                    color: AppColors.grey),
+                                onSelected: (value) {
+                                  if (value == 'edit') {
+                                    _editClient(context, ref, c);
+                                  } else if (value == 'delete') {
+                                    _deleteClient(context, ref, c);
+                                  }
+                                },
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                      value: 'edit',
+                                      child: ListTile(
+                                          dense: true,
+                                          contentPadding: EdgeInsets.zero,
+                                          leading: Icon(Icons.edit_outlined),
+                                          title: Text('Editar'))),
+                                  PopupMenuItem(
+                                      value: 'delete',
+                                      child: ListTile(
+                                          dense: true,
+                                          contentPadding: EdgeInsets.zero,
+                                          leading: Icon(Icons.delete_outline,
+                                              color: AppColors.red),
+                                          title: Text('Excluir',
+                                              style: TextStyle(
+                                                  color: AppColors.red)))),
+                                ],
+                              ),
+                            ],
+                          ),
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
                                 builder: (_) => ClientHistoryPage(client: c)),

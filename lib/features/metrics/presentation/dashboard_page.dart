@@ -14,12 +14,14 @@ class DashboardPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final summary = ref.watch(metricsSummaryProvider);
     final byPoint = ref.watch(revenueByPointProvider);
+    final byPayment = ref.watch(paymentsBreakdownProvider);
 
     return RefreshIndicator(
       color: AppColors.green,
       onRefresh: () async {
         ref.invalidate(metricsSummaryProvider);
         ref.invalidate(revenueByPointProvider);
+        ref.invalidate(paymentsBreakdownProvider);
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -58,6 +60,83 @@ class DashboardPage extends ConsumerWidget {
             onRetry: () => ref.invalidate(revenueByPointProvider),
             data: (points) => _RankingCard(points: points),
           ),
+          const SizedBox(height: AppSpacing.xl),
+          const Text('FATURAMENTO POR FORMA DE PAGAMENTO',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                  color: AppColors.grey)),
+          const SizedBox(height: AppSpacing.sm),
+          AsyncValueWidget<List<PaymentBreakdown>>(
+            value: byPayment,
+            onRetry: () => ref.invalidate(paymentsBreakdownProvider),
+            data: (items) => _PaymentsCard(items: items),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentsCard extends StatelessWidget {
+  final List<PaymentBreakdown> items;
+  const _PaymentsCard({required this.items});
+
+  static String _label(String method) {
+    switch (method.toLowerCase()) {
+      case 'dinheiro':
+        return 'Dinheiro';
+      case 'pix':
+        return 'PIX';
+      case 'cartao':
+      case 'cartão':
+        return 'Cartão';
+      default:
+        return method;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return const EmptyState(
+        icon: Icons.payments_outlined,
+        title: 'Sem vendas ainda',
+        subtitle: 'O resumo aparece quando houver pedidos registrados.',
+      );
+    }
+    return Container(
+      decoration: BoxDecoration(
+        color: context.cardSurface,
+        borderRadius: BorderRadius.circular(AppRadii.table),
+        border: Border.all(color: context.borderColor),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        children: [
+          for (int i = 0; i < items.length; i++) ...[
+            if (i > 0) const Divider(height: AppSpacing.lg),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(_label(items[i].method),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13)),
+                ),
+                Text('${items[i].ordersCount}x  ',
+                    style: const TextStyle(
+                        color: AppColors.grey, fontSize: 12)),
+                Text(currencyBRL(items[i].revenue),
+                    style: const TextStyle(
+                        color: AppColors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13)),
+              ],
+            ),
+          ],
         ],
       ),
     );

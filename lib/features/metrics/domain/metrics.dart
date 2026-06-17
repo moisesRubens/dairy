@@ -45,3 +45,22 @@ class PointRevenue {
         ordersCount: (json['orders_count'] as num?)?.toInt() ?? 0,
       );
 }
+
+class PaymentBreakdown {
+  final String method;
+  final double revenue;
+  final int ordersCount;
+
+  PaymentBreakdown({
+    required this.method,
+    required this.revenue,
+    required this.ordersCount,
+  });
+
+  factory PaymentBreakdown.fromJson(Map<String, dynamic> json) =>
+      PaymentBreakdown(
+        method: json['method'] as String? ?? '—',
+        revenue: (json['revenue'] as num?)?.toDouble() ?? 0,
+        ordersCount: (json['orders_count'] as num?)?.toInt() ?? 0,
+      );
+}

@@ -32,6 +32,29 @@ class ClientRepository {
     }
   }
 
+  Future<Client> update(int clientId,
+      {String? name, String? phone, String? email, String? notes}) async {
+    try {
+      final response = await _dio.patch('/clients/$clientId', data: {
+        if (name != null && name.isNotEmpty) 'name': name,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+        if (email != null && email.isNotEmpty) 'email': email,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      });
+      return Client.fromJson(response.data as Map<String, dynamic>);
+    } catch (e) {
+      throw toApiException(e);
+    }
+  }
+
+  Future<void> delete(int clientId) async {
+    try {
+      await _dio.delete('/clients/$clientId');
+    } catch (e) {
+      throw toApiException(e);
+    }
+  }
+
   Future<ClientHistory> history(int clientId) async {
     try {
       final response = await _dio.get('/clients/$clientId/orders');

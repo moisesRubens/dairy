@@ -26,6 +26,17 @@ class MetricsRepository {
       throw toApiException(e);
     }
   }
+
+  Future<List<PaymentBreakdown>> paymentsBreakdown() async {
+    try {
+      final response = await _dio.get('/admin/metrics/payments');
+      return (response.data as List)
+          .map((e) => PaymentBreakdown.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      throw toApiException(e);
+    }
+  }
 }
 
 final metricsRepositoryProvider =
@@ -36,3 +47,7 @@ final metricsSummaryProvider = FutureProvider.autoDispose<MetricsSummary>(
 
 final revenueByPointProvider = FutureProvider.autoDispose<List<PointRevenue>>(
     (ref) => ref.watch(metricsRepositoryProvider).revenueByPoint());
+
+final paymentsBreakdownProvider =
+    FutureProvider.autoDispose<List<PaymentBreakdown>>(
+        (ref) => ref.watch(metricsRepositoryProvider).paymentsBreakdown());
