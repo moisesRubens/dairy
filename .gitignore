@@ -17,6 +17,7 @@ migrate_working_dir/
 # Docs de estudo / base teórica para banca — privados, nunca publicar
 .ai/banca_zd4.md
 .ai/banca_moises.md
+.ai/guia_demo.md
 # IntelliJ related
 *.iml
 *.ipr
