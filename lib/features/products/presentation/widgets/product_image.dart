@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../../config/theme.dart';
 import '../../domain/product.dart';
@@ -29,24 +30,22 @@ class ProductImage extends StatelessWidget {
         height: size,
         child: url == null
             ? _Placeholder(product: product, size: size)
-            : Image.network(
-                url,
+            : CachedNetworkImage(
+                // Cache em disco: a foto fica disponível offline depois da 1ª vez.
+                imageUrl: url,
                 fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return Container(
-                    color: context.mutedSurface,
-                    child: const Center(
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: AppColors.green),
-                      ),
+                placeholder: (context, _) => Container(
+                  color: context.mutedSurface,
+                  child: const Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.green),
                     ),
-                  );
-                },
-                errorBuilder: (_, _, _) =>
+                  ),
+                ),
+                errorWidget: (_, _, _) =>
                     _Placeholder(product: product, size: size),
               ),
       ),
