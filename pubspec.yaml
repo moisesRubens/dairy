@@ -45,6 +45,8 @@ dependencies:
   # Para guardar o Token e dados do SalePoint localmente
   shared_preferences: ^2.2.3
   jwt_decoder: ^2.0.1
+  # Seleção de foto do produto (galeria) no form de cadastro/edição (admin)
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:
