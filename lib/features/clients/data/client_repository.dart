@@ -1,18 +1,30 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/local/local_store.dart';
 import '../../../core/network/dio_provider.dart';
 import '../domain/client.dart';
+import 'client_dao.dart';
 
 class ClientRepository {
   final Dio _dio;
-  ClientRepository(this._dio);
+  final ClientDao _dao;
+  ClientRepository(this._dio, this._dao);
 
+  /// Offline-first (cache-fallback): sem rede, serve os clientes do cache local.
   Future<List<Client>> list() async {
     try {
       final response = await _dio.get('/clients/');
-      return (response.data as List)
+      final clients = (response.data as List)
           .map((e) => Client.fromJson(e as Map<String, dynamic>))
           .toList();
+      await _dao.replaceAll(clients);
+      return clients;
+    } on DioException catch (e) {
+      if (e.response == null) {
+        final cached = await _dao.getAll();
+        if (cached.isNotEmpty) return cached;
+      }
+      throw toApiException(e);
     } catch (e) {
       throw toApiException(e);
     }
@@ -76,8 +88,8 @@ class ClientRepository {
   }
 }
 
-final clientRepositoryProvider =
-    Provider<ClientRepository>((ref) => ClientRepository(ref.watch(dioProvider)));
+final clientRepositoryProvider = Provider<ClientRepository>((ref) =>
+    ClientRepository(ref.watch(dioProvider), ClientDao(LocalStore.instance)));
 
 final clientsProvider = FutureProvider.autoDispose<List<Client>>(
     (ref) => ref.watch(clientRepositoryProvider).list());

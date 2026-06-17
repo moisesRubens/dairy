@@ -18,7 +18,7 @@ class LocalStore {
   static final LocalStore instance = LocalStore._();
 
   static Database? _db;
-  static const int _version = 1;
+  static const int _version = 2;
 
   Future<Database> get database async => _db ??= await _open();
 
@@ -32,25 +32,47 @@ class LocalStore {
       sqfliteFfiInit();
       return databaseFactoryFfi.openDatabase(
         path,
-        options: OpenDatabaseOptions(version: _version, onCreate: _onCreate),
+        options: OpenDatabaseOptions(
+            version: _version, onCreate: _onCreate, onUpgrade: _onUpgrade),
       );
     }
-    return openDatabase(path, version: _version, onCreate: _onCreate);
+    return openDatabase(path,
+        version: _version, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
+  // Cada tabela espelha o JSON do backend → a leitura reusa o `fromJson` do
+  // domínio. Chave = id remoto (upsert por REPLACE / replaceAll por snapshot).
+  static const String _createProducts = '''
+    CREATE TABLE products (
+      id INTEGER PRIMARY KEY, name TEXT NOT NULL, price REAL,
+      amount INTEGER, kg REAL, liters REAL, image_url TEXT, updated_at TEXT
+    )''';
+
+  static const String _createClients = '''
+    CREATE TABLE clients (
+      id INTEGER PRIMARY KEY, name TEXT NOT NULL, phone TEXT, email TEXT,
+      notes TEXT, sale_point_id INTEGER, updated_at TEXT
+    )''';
+
+  static const String _createOutbounds = '''
+    CREATE TABLE outbounds (
+      id INTEGER PRIMARY KEY, sale_point_id INTEGER, product_id INTEGER,
+      name TEXT, status INTEGER, data TEXT, unidade TEXT, taken_quantity REAL,
+      sold_quantity REAL, remaining_quantity REAL, total_value REAL,
+      observacao TEXT, updated_at TEXT
+    )''';
+
   Future<void> _onCreate(Database db, int version) async {
-    // Cache do catálogo de produtos (chave = id remoto → upsert por REPLACE).
-    await db.execute('''
-      CREATE TABLE products (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        price REAL,
-        amount INTEGER,
-        kg REAL,
-        liters REAL,
-        image_url TEXT,
-        updated_at TEXT
-      )
-    ''');
+    await db.execute(_createProducts);
+    await db.execute(_createClients);
+    await db.execute(_createOutbounds);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    // v1 → v2: tabelas de clientes e estoque (retiradas).
+    if (oldVersion < 2) {
+      await db.execute(_createClients);
+      await db.execute(_createOutbounds);
+    }
   }
 }
