@@ -23,7 +23,7 @@ class SalePointController {
     final url = Uri.parse('${ApiConfig.baseUrl}/auth/$salePointId/outbounds');
 
     try {
-      final response = await http.delete(
+      final response = await http.patch(
         url,
         headers: {
           'Content-Type': 'application/json',
