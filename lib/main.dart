@@ -97,7 +97,13 @@ class _MainShellState extends State<MainShell> {
         backgroundColor: Colors.white,
         elevation: 0,
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          setState(() => _currentIndex = index);
+          if (index == 2) {
+            // ✅ CHAMA O MÉTODO ESTÁTICO loadInventory()
+            InventoryPage.loadInventory();
+          }
+        },
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.grey,
