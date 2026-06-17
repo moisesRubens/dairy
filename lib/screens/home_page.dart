@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../domain/product.dart';
 import '../services/outbound_service.dart';
+import '../controllers/sale_point_controller.dart'; 
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -10,11 +11,11 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final SalePointController _salePointController = SalePointController();
   double dailyRevenue = 1250.50;
-
   List<Product> products = [];
   bool _isLoading = true;
-
+  bool _isReturning = false; 
   List<Map<String, dynamic>> cart = [];
 
   @override
@@ -25,6 +26,50 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadProducts() async {
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _returnProductsToStock() async {
+    if (_isReturning) return;
+
+    setState(() => _isReturning = true);
+
+    try {
+      final success = await _salePointController.retornarProdutosAoEstoque();
+      
+      if (success) {
+        setState(() {
+          cart.clear();
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Produtos retornados ao estoque com sucesso!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Erro ao retornar produtos. Tente novamente.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Erro: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isReturning = false);
+      }
+    }
   }
 
   void addToCart(Product product, double quantity) {
@@ -62,7 +107,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-
     return RefreshIndicator(
       onRefresh: _loadProducts, 
       child: SingleChildScrollView(
@@ -74,7 +118,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               const SizedBox(height: 10),
               
-              // Card de Faturamento
+              // Card de Faturamento com botão Retornar
               _buildRevenueCard(),
               
               const SizedBox(height: 20),
@@ -103,7 +147,14 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Faturamento do Dia', style: TextStyle(color: Colors.white70, fontSize: 14)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Faturamento do Dia', style: TextStyle(color: Colors.white70, fontSize: 14)),
+              // BOTÃO RETORNAR ADICIONADO AQUI
+              _buildReturnButton(),
+            ],
+          ),
           const SizedBox(height: 8),
           Text(
             'R\$ ${dailyRevenue.toStringAsFixed(2).replaceAll('.', ',')}',
@@ -114,56 +165,81 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildProductTable() {
-  // O ValueListenableBuilder fica vigiando o Notifier do Service
-  return ValueListenableBuilder<List<Product>>(
-    valueListenable: OutboundService.saleProductsNotifier,
-    builder: (context, produtosAtualizados, child) {
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
+  // Widget do botão Retornar
+  Widget _buildReturnButton() {
+    return ElevatedButton.icon(
+      onPressed: _isReturning ? null : _returnProductsToStock,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey[300]!),
         ),
-        child: Column(
-          children: [
-            Container(
-              color: Colors.grey[100],
-              padding: const EdgeInsets.all(12),
-              child: const Row(
-                children: [
-                  Expanded(flex: 2, child: Text('Produto', style: TextStyle(fontWeight: FontWeight.bold))),
-                  Expanded(child: Text('Preço', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                  Expanded(child: Text('Un', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                  Expanded(child: Text('Qtd', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                  SizedBox(width: 50),
-                ],
+      ),
+      icon: _isReturning
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
               ),
-            ),
-            if (_isLoading)
-              const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()))
-            // MUDANÇA AQUI: Usa a lista "produtosAtualizados" que veio do Notifier
-            else if (produtosAtualizados.isEmpty)
-              const Padding(padding: EdgeInsets.all(20), child: Center(child: Text("Nenhum produto em estoque.")))
-            else
-              ...produtosAtualizados.map((product) {
-                final controller = TextEditingController();
-                return ProductRow(
-                  product: product,
-                  controller: controller,
-                  onAdd: () {
-                    final qty = double.tryParse(controller.text) ?? 0;
-                    addToCart(product, qty);
-                    controller.clear();
-                  },
-                );
-              }),
-          ],
-        ),
-      );
-    },
-  );
-}
+            )
+          : const Icon(Icons.arrow_back, size: 20),
+      label: Text(_isReturning ? 'Retornando...' : 'Retornar'),
+    );
+  }
+
+  Widget _buildProductTable() {
+    // O ValueListenableBuilder fica vigiando o Notifier do Service
+    return ValueListenableBuilder<List<Product>>(
+      valueListenable: OutboundService.saleProductsNotifier,
+      builder: (context, produtosAtualizados, child) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: Column(
+            children: [
+              Container(
+                color: Colors.grey[100],
+                padding: const EdgeInsets.all(12),
+                child: const Row(
+                  children: [
+                    Expanded(flex: 2, child: Text('Produto', style: TextStyle(fontWeight: FontWeight.bold))),
+                    Expanded(child: Text('Preço', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                    Expanded(child: Text('Un', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                    Expanded(child: Text('Qtd', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                    SizedBox(width: 50),
+                  ],
+                ),
+              ),
+              if (_isLoading)
+                const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()))
+              else if (produtosAtualizados.isEmpty)
+                const Padding(padding: EdgeInsets.all(20), child: Center(child: Text("Nenhum produto em estoque.")))
+              else
+                ...produtosAtualizados.map((product) {
+                  final controller = TextEditingController();
+                  return ProductRow(
+                    product: product,
+                    controller: controller,
+                    onAdd: () {
+                      final qty = double.tryParse(controller.text) ?? 0;
+                      addToCart(product, qty);
+                      controller.clear();
+                    },
+                  );
+                }),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Widget _buildCartSection() {
     return Column(

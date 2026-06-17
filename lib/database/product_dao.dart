@@ -3,9 +3,7 @@ import '../domain/product.dart';
 import 'db.dart';
 
 class ProductDao {
-  // ============================================================
-  // Inserir ou atualizar produto
-  // ============================================================
+
   Future<int> insertProduct(Product product) async {
     final db = await DB.instance.database;
     
@@ -13,14 +11,14 @@ class ProductDao {
       'produtoId': product.id,
       'name': product.name,
       'price': product.price,
-      'amount': product.amount,
-      'kg': product.kg,
-      'liters': product.liters,
+      'amount': product.amount ?? -1,  // Garantir que não seja null
+      'kg': product.kg ?? -1,          // Garantir que não seja null
+      'liters': product.liters ?? -1,  // Garantir que não seja null
       'updatedAt': DateTime.now().toIso8601String(),
     };
 
     final existing = await db.query(
-      'produtos',
+      'produtos',  // Mantém o nome da tabela consistente
       where: 'produtoId = ?',
       whereArgs: [product.id],
     );
@@ -66,9 +64,9 @@ class ProductDao {
       id: map['produtoId'] as int?,
       name: map['name'] as String,
       price: map['price'] as double?,
-      amount: map['amount'] as int?,
-      kg: map['kg'] as double?,
-      liters: map['liters'] as double?,
+      amount: map['amount'] as int? ?? -1,  // Valor padrão se null
+      kg: map['kg'] as double? ?? -1,       // Valor padrão se null
+      liters: map['liters'] as double? ?? -1, // Valor padrão se null
     )).toList();
   }
 
@@ -91,15 +89,12 @@ class ProductDao {
       id: map['produtoId'] as int?,
       name: map['name'] as String,
       price: map['price'] as double?,
-      amount: map['amount'] as int?,
-      kg: map['kg'] as double?,
-      liters: map['liters'] as double?,
+      amount: map['amount'] as int? ?? -1,
+      kg: map['kg'] as double? ?? -1,
+      liters: map['liters'] as double? ?? -1,
     );
   }
 
-  // ============================================================
-  // Buscar produto por nome (pesquisa)
-  // ============================================================
   Future<List<Product>> searchProducts(String query) async {
     final db = await DB.instance.database;
     
@@ -114,15 +109,12 @@ class ProductDao {
       id: map['produtoId'] as int?,
       name: map['name'] as String,
       price: map['price'] as double?,
-      amount: map['amount'] as int?,
-      kg: map['kg'] as double?,
-      liters: map['liters'] as double?,
+      amount: map['amount'] as int? ?? -1,
+      kg: map['kg'] as double? ?? -1,
+      liters: map['liters'] as double? ?? -1,
     )).toList();
   }
 
-  // ============================================================
-  // Atualizar quantidade de um produto
-  // ============================================================
   Future<bool> updateQuantity(int produtoId, int newAmount) async {
     try {
       final db = await DB.instance.database;
@@ -135,7 +127,7 @@ class ProductDao {
         where: 'produtoId = ?',
         whereArgs: [produtoId],
       );
-      print('📦 Produto ID $produtoId atualizado para $newAmount');
+      print('📦 Produto ID $produtoId atualizado para $newAmount un');
       return true;
     } catch (e) {
       print('❌ Erro ao atualizar quantidade: $e');
@@ -143,9 +135,46 @@ class ProductDao {
     }
   }
 
-  // ============================================================
-  // Deletar um produto
-  // ============================================================
+  Future<bool> updateKg(int produtoId, double newKg) async {
+    try {
+      final db = await DB.instance.database;
+      await db.update(
+        'produtos',  
+        {
+          'kg': newKg,
+          'updatedAt': DateTime.now().toIso8601String(),
+        },
+        where: 'produtoId = ?',  
+        whereArgs: [produtoId],
+      );
+      print('📦 Produto ID $produtoId atualizado para $newKg kg');
+      return true;
+    } catch (e) {
+      print('❌ Erro ao atualizar kg: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateLiters(int produtoId, double newLiters) async {
+    try {
+      final db = await DB.instance.database;
+      await db.update(
+        'produtos',  // CORRIGIDO: era 'products'
+        {
+          'liters': newLiters,
+          'updatedAt': DateTime.now().toIso8601String(),
+        },
+        where: 'produtoId = ?',  // CORRIGIDO: era 'id = ?'
+        whereArgs: [produtoId],
+      );
+      print('📦 Produto ID $produtoId atualizado para $newLiters L');
+      return true;
+    } catch (e) {
+      print('❌ Erro ao atualizar litros: $e');
+      return false;
+    }
+  }
+
   Future<bool> deleteProduct(int produtoId) async {
     try {
       final db = await DB.instance.database;
@@ -162,27 +191,18 @@ class ProductDao {
     }
   }
 
-  // ============================================================
-  // Limpar todos os produtos
-  // ============================================================
   Future<void> deleteAll() async {
     final db = await DB.instance.database;
     await db.delete('produtos');
     print('🗑️ Todos os produtos removidos!');
   }
 
-  // ============================================================
-  // Contar produtos
-  // ============================================================
   Future<int> countProducts() async {
     final db = await DB.instance.database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM produtos');
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
-  // ============================================================
-  // Verificar se produto existe
-  // ============================================================
   Future<bool> productExists(int produtoId) async {
     final db = await DB.instance.database;
     final result = await db.query(
