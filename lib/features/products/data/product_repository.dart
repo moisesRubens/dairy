@@ -2,20 +2,35 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/local/local_store.dart';
 import '../../../core/network/dio_provider.dart';
 import '../domain/product.dart';
+import 'product_dao.dart';
 
 class ProductRepository {
   final Dio _dio;
-  ProductRepository(this._dio);
+  final ProductDao _dao;
+  ProductRepository(this._dio, this._dao);
 
+  /// Offline-first (cache-fallback): busca o catálogo no servidor e atualiza o
+  /// cache local; se estiver SEM REDE (erro sem resposta), serve o cache.
+  /// Erros COM resposta (401, 500…) propagam — não mascaramos com dado velho.
   Future<List<Product>> list() async {
     try {
       // Barra final obrigatória: /products (sem barra) gera 307 e perde o token.
       final response = await _dio.get('/products/');
-      return (response.data as List)
+      final products = (response.data as List)
           .map((e) => Product.fromJson(e as Map<String, dynamic>))
           .toList();
+      await _dao.replaceAll(products); // snapshot do servidor → cache
+      return products;
+    } on DioException catch (e) {
+      if (e.response == null) {
+        // Sem resposta = offline/timeout → usa o cache local, se houver.
+        final cached = await _dao.getAll();
+        if (cached.isNotEmpty) return cached;
+      }
+      throw toApiException(e);
     } catch (e) {
       throw toApiException(e);
     }
@@ -91,8 +106,8 @@ class ProductRepository {
   }
 }
 
-final productRepositoryProvider =
-    Provider<ProductRepository>((ref) => ProductRepository(ref.watch(dioProvider)));
+final productRepositoryProvider = Provider<ProductRepository>((ref) =>
+    ProductRepository(ref.watch(dioProvider), ProductDao(LocalStore.instance)));
 
 final productsProvider = FutureProvider.autoDispose<List<Product>>(
     (ref) => ref.watch(productRepositoryProvider).list());
