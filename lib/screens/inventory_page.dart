@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../domain/product.dart'; // Importe seu model
-import '../services/product_service.dart'; // Importe seu service
-import '../services/outbound_service.dart'; // Importe o OutboundService
+import '../domain/product.dart';
+import '../services/product_service.dart';
+import '../services/outbound_service.dart';
+import '../database/product_dao.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -12,11 +13,11 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   final ProductService _productService = ProductService();
-  final OutboundService _outboundService = OutboundService(); // Instância do OutboundService
-  
-  // MUDANÇA: Lista agora é de Objetos Product e começa vazia
+  final OutboundService _outboundService = OutboundService();
+  final ProductDao _productDao = ProductDao();
+
   List<Product> _products = [];
-  bool _isLoading = true; // Para o feedback visual de carregamento
+  bool _isLoading = true;
 
   int? _expandedProductId;
   final Set<int> _selectedProductIds = {};
@@ -26,25 +27,40 @@ class _InventoryPageState extends State<InventoryPage> {
   @override
   void initState() {
     super.initState();
-    _loadProducts(); // Carrega os dados da API
+    _loadProducts();
   }
 
-  // Função para buscar os dados do Service
+  // ============================================================
+  // LOAD PRODUCTS - NÃO salva no banco
+  // ============================================================
   Future<void> _loadProducts() async {
     setState(() => _isLoading = true);
     try {
       final data = await _productService.getProducts();
       if (!mounted) return;
+      
+      // ❌ NÃO salva no banco
       setState(() {
         _products = data;
         _isLoading = false;
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao carregar estoque: $e')),
-      );
+      // Fallback: banco local (apenas retiradas)
+      try {
+        final localProducts = await _productDao.getAllProducts();
+        if (!mounted) return;
+        setState(() {
+          _products = localProducts;
+          _isLoading = false;
+        });
+        print('💾 ${localProducts.length} produtos carregados do banco (retiradas)');
+      } catch (e2) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao carregar estoque: $e')),
+        );
+      }
     }
   }
 
@@ -55,14 +71,17 @@ class _InventoryPageState extends State<InventoryPage> {
     super.dispose();
   }
 
+  // ============================================================
+  // BUILD
+  // ============================================================
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         Expanded(
           child: _isLoading 
-            ? const Center(child: CircularProgressIndicator()) // Mostra loading
-            : RefreshIndicator( // Adiciona "puxar para atualizar"
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
                 onRefresh: _loadProducts,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
@@ -79,7 +98,7 @@ class _InventoryPageState extends State<InventoryPage> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.refresh),
-                            onPressed: _loadProducts, // Botão de atualizar
+                            onPressed: _loadProducts,
                           )
                         ],
                       ),
@@ -113,7 +132,9 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  // MUDANÇA: Recebe o objeto Product agora
+  // ============================================================
+  // BUILD PRODUCT CARD
+  // ============================================================
   Widget _buildProductCard(Product product) {
     final bool isSelected = _selectedProductIds.contains(product.id);
     final bool isExpanded = _expandedProductId == product.id;
@@ -215,7 +236,6 @@ class _InventoryPageState extends State<InventoryPage> {
                   ),
                   if (isExpanded) ...[
                     const SizedBox(height: 8),
-                    // Exibe o estoque real vindo da API
                     Text("Estoque: ${quantity ?? 0} $unit", style: const TextStyle(fontSize: 12)),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -244,28 +264,9 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  // Métodos auxiliares agora usam o objeto Product
-  void _handleEdit(Product product) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Editar: ${product.name}')));
-  }
-
-  void _showDeleteDialog(Product product) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Excluir Produto?'),
-        content: Text('Deseja realmente remover ${product.name} do estoque?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('EXCLUIR', style: TextStyle(color: Color(0xFFE74C3C))),
-          ),
-        ],
-      ),
-    );
-  }
-
+  // ============================================================
+  // BOTTOM QUANTITY SELECTOR
+  // ============================================================
   Widget _buildBottomQuantitySelector() {
     final int count = _selectedProductIds.length;
 
@@ -293,9 +294,6 @@ class _InventoryPageState extends State<InventoryPage> {
             ),
           ),
           const SizedBox(width: 12),
-          // Botão que abre o teclado
-          
-          const SizedBox(width: 12),
           SizedBox(
             width: 60,
             child: TextField(
@@ -315,9 +313,7 @@ class _InventoryPageState extends State<InventoryPage> {
           ),
           const SizedBox(width: 12),
           ElevatedButton(
-            onPressed: () {
-              _handleOutboundCreation(); // Chama o novo método para lidar com a lógica
-            },
+            onPressed: _handleOutboundCreation,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2E7D32),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
@@ -329,6 +325,9 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
+  // ============================================================
+  // HANDLE OUTBOUND CREATION
+  // ============================================================
   Future<void> _handleOutboundCreation() async {
     final String quantityText = _quantityController.text;
     final int? quantity = int.tryParse(quantityText);
@@ -349,20 +348,50 @@ class _InventoryPageState extends State<InventoryPage> {
       outboundsMap[product] = quantity;
     }
 
+    setState(() => _isLoading = true);
+
     final bool success = await _outboundService.createOutbound(outboundsMap);
 
     if (success) {
       _showSnackBar('Saída de ${outboundsMap.length} item(s) registrada com sucesso!', const Color(0xFF2E7D32));
-      setState(() => _selectedProductIds.clear());
-      //deve mandar a lista de produtos retirados pra a home_page.dart
-
+      
+      setState(() {
+        _selectedProductIds.clear();
+        _isLoading = false;
+      });
+      
       _quantityController.clear();
-      _quantityFocusNode.unfocus(); // Esconde o teclado
-      _loadProducts();
-      //se sucess, deve mandar a lista de produtos pra carregar na screens/home_page.dart 
+      _quantityFocusNode.unfocus();
+      await _loadProducts();
+      
     } else {
+      setState(() => _isLoading = false);
       _showSnackBar('Falha ao registrar saída. Verifique a conexão ou tente novamente.', Colors.red);
     }
+  }
+
+  // ============================================================
+  // MÉTODOS AUXILIARES
+  // ============================================================
+  void _handleEdit(Product product) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Editar: ${product.name}')));
+  }
+
+  void _showDeleteDialog(Product product) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir Produto?'),
+        content: Text('Deseja realmente remover ${product.name} do estoque?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('EXCLUIR', style: TextStyle(color: Color(0xFFE74C3C))),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSnackBar(String message, Color backgroundColor) {

@@ -6,8 +6,18 @@ import 'package:go_router/go_router.dart';
 import 'screens/home_page.dart';
 import 'screens/orders_page.dart';
 import 'services/auth_service.dart';
+import 'services/outbound_service.dart';
+import 'database/db.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inicializa o banco
+  await DB.instance.database;
+  
+  // Carrega apenas as retiradas do banco
+  await OutboundService.loadProductsFromLocal();
+  
   runApp(const MyApp());
 }
 
@@ -15,8 +25,6 @@ final AuthService _authService = AuthService();
 
 final GoRouter _router = GoRouter(
   initialLocation: '/login',
-  // Auto-login: se a sessão é válida, pula a tela de login; se não é,
-  // qualquer rota protegida é redirecionada de volta para /login.
   redirect: (context, state) async {
     final loggedIn = await _authService.isLoggedIn();
     final goingToLogin = state.matchedLocation == '/login';
@@ -63,12 +71,11 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
-  // Lista de páginas que preencherão o Body
   final List<Widget> _pages = [
-    const HomePage(),                   // Index 0: Home
-    const OrdersPage(), // Index 1: Pedidos
-    const InventoryPage(), // Index 2: Estoque
-    const SalesPointsPage(),  // Index 3: Perfis
+    const HomePage(),
+    const OrdersPage(),
+    const InventoryPage(),
+    const SalesPointsPage(),
   ];
 
   @override
@@ -81,7 +88,7 @@ class _MainShellState extends State<MainShell> {
         shape: Border(bottom: BorderSide(color: Colors.grey[800]!, width: 2)),
         title: const Text('Fazenda Boa Esperança', style: TextStyle(color: Colors.white)),
       ),
-      drawer: const AppDrawer(), // Componentize seu Drawer também!
+      drawer: const AppDrawer(),
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
