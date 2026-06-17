@@ -149,8 +149,7 @@ class _ProductTile extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              AspectRatio(
-                aspectRatio: 1,
+              Expanded(
                 child: ProductImage(
                   product: product,
                   size: double.infinity,
