@@ -14,6 +14,9 @@ migrate_working_dir/
 .ai/extractor_v2.md
 .ai/generator_v2.md
 .ai/validator_v2.md
+# Docs de estudo / base teórica para banca — privados, nunca publicar
+.ai/banca_zd4.md
+.ai/banca_moises.md
 # IntelliJ related
 *.iml
 *.ipr
