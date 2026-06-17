@@ -142,7 +142,7 @@ class OutboundService {
 
         print('   📦 ${product.name}: retirada de $quantity');
 
-        final existing = await dao.getProductById(product.id!);
+        final existing = await dao.getProductByLocalId(product.id!);
         
         if (existing != null) {
           // Se já existe, soma a quantidade
@@ -230,6 +230,18 @@ class OutboundService {
       print('🗑️ Histórico de retiradas limpo');
     } catch (e) {
       print('❌ Erro ao limpar histórico: $e');
+    }
+  }
+  
+  
+  static Future<void> refreshProducts() async {
+    try {
+      final dao = ProductDao();
+      final products = await dao.getAllProducts();
+      saleProductsNotifier.value = products;
+      print('🔄 Produtos recarregados do banco: ${products.length} itens');
+    } catch (e) {
+      print('❌ Erro ao recarregar produtos: $e');
     }
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../domain/product.dart';
 import '../services/outbound_service.dart';
-import '../controllers/sale_point_controller.dart'; 
+import '../controllers/sale_point_controller.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,62 +15,77 @@ class _HomePageState extends State<HomePage> {
   double dailyRevenue = 1250.50;
   List<Product> products = [];
   bool _isLoading = true;
-  bool _isReturning = false; 
+  bool _isReturning = false;
   List<Map<String, dynamic>> cart = [];
 
   @override
   void initState() {
     super.initState();
     _loadProducts();
+    
+    // 🔥 OPCIONAL: Escuta mudanças no notifier e atualiza a UI
+    OutboundService.saleProductsNotifier.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   Future<void> _loadProducts() async {
-    setState(() => _isLoading = false);
-  }
+  setState(() => _isLoading = true);
+  
+  // 🔥 CARREGA OS PRODUTOS DO BANCO
+  await OutboundService.refreshProducts();
+  
+  setState(() => _isLoading = false);
+}
 
   Future<void> _returnProductsToStock() async {
-    if (_isReturning) return;
+  if (_isReturning) return;
 
-    setState(() => _isReturning = true);
+  setState(() => _isReturning = true);
 
-    try {
-      final success = await _salePointController.retornarProdutosAoEstoque();
-      
-      if (success) {
-        setState(() {
-          cart.clear();
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Produtos retornados ao estoque com sucesso!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('❌ Erro ao retornar produtos. Tente novamente.'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
+  try {
+    final success = await _salePointController.retornarProdutosAoEstoque();
+
+    if (success) {
+      setState(() {
+        cart.clear();
+      });
+
+      // 🔥 RECARREGA OS PRODUTOS DO BANCO
+      await OutboundService.refreshProducts();
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Erro: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
+        const SnackBar(
+          content: Text('✅ Produtos retornados ao estoque com sucesso!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
         ),
       );
-    } finally {
-      if (mounted) {
-        setState(() => _isReturning = false);
-      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Erro ao retornar produtos. Tente novamente.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('❌ Erro: $e'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _isReturning = false);
     }
   }
+}
 
   void addToCart(Product product, double quantity) {
     if (quantity <= 0) return;
@@ -85,7 +100,8 @@ class _HomePageState extends State<HomePage> {
           'name': product.name,
           'price': product.price ?? 0.0,
           'unit': unit,
-          'quantity': quantity
+          'quantity': quantity,
+          'product': product, // 🔥 Guarda o produto completo
         });
       }
     });
@@ -105,10 +121,71 @@ class _HomePageState extends State<HomePage> {
     return cart.fold(0.0, (sum, item) => sum + (item['price'] * item['quantity']));
   }
 
+  // 🔥 NOVO MÉTODO: FINALIZAR VENDA
+  // 🔥 FINALIZAR VENDA (ATUALIZADO)
+Future<void> _finalizarVenda() async {
+  if (cart.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('❌ Carrinho vazio! Adicione produtos.'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+    return;
+  }
+
+  // Converte os itens do carrinho para lista de produtos
+  final List<Product> productsToSell = cart.map((item) {
+    final product = item['product'] as Product;
+    return Product(
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      amount: product.amount != null ? (item['quantity'] as double).toInt() : null,
+      kg: product.kg != null ? item['quantity'] : null,
+      liters: product.liters != null ? item['quantity'] : null,
+    );
+  }).toList();
+
+  // Chama o controller para fazer a venda
+  final success = await _salePointController.fazerVenda(
+    productsToSell,
+    description: 'Venda do dia ${DateTime.now().toLocal().toString().split(' ')[0]}',
+    totalValue: getTotalValue(),
+  );
+
+  if (success) {
+    // ✅ Sucesso
+    setState(() {
+      cart.clear();
+    });
+
+    // 🔥 RECARREGA OS PRODUTOS DO BANCO PARA ATUALIZAR A TABELA
+    await OutboundService.refreshProducts();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✅ Venda finalizada com sucesso!'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  } else {
+    // ❌ Erro
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('❌ ${_salePointController.errorMessage.value ?? "Erro ao finalizar venda"}'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      onRefresh: _loadProducts, 
+      onRefresh: _loadProducts,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Padding(
@@ -117,25 +194,25 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 10),
-              
+
               // Card de Faturamento com botão Retornar
               _buildRevenueCard(),
-              
+
               const SizedBox(height: 20),
-              
+
               // Tabela de Produtos
               _buildProductTable(),
-              
+
               // Seção do Carrinho (Condicional)
               if (cart.isNotEmpty) _buildCartSection(),
             ],
           ),
         ),
-      )
+      ),
     );
   }
 
-  // --- Widgets de Apoio (Refatorados para organização) ---
+  // --- Widgets de Apoio ---
 
   Widget _buildRevenueCard() {
     return Container(
@@ -151,7 +228,6 @@ class _HomePageState extends State<HomePage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Faturamento do Dia', style: TextStyle(color: Colors.white70, fontSize: 14)),
-              // BOTÃO RETORNAR ADICIONADO AQUI
               _buildReturnButton(),
             ],
           ),
@@ -165,7 +241,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Widget do botão Retornar
   Widget _buildReturnButton() {
     return ElevatedButton.icon(
       onPressed: _isReturning ? null : _returnProductsToStock,
@@ -192,7 +267,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildProductTable() {
-    // O ValueListenableBuilder fica vigiando o Notifier do Service
     return ValueListenableBuilder<List<Product>>(
       valueListenable: OutboundService.saleProductsNotifier,
       builder: (context, produtosAtualizados, child) {
@@ -288,6 +362,7 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                     const SizedBox(height: 16),
+                    // 🔥 BOTÃO FINALIZAR VENDA COM LOADING
                     _buildCartActions(),
                   ],
                 ),
@@ -300,32 +375,52 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCartActions() {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton(
-            onPressed: () => setState(() => cart.clear()),
-            child: const Text('Limpar'),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Venda finalizada com sucesso!')),
-              );
-              setState(() => cart.clear());
-            },
-            child: const Text('Finalizar Venda'),
-          ),
-        ),
-      ],
+    return ValueListenableBuilder<bool>(
+      valueListenable: _salePointController.isLoading,
+      builder: (context, isLoading, child) {
+        return Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: isLoading ? null : () => setState(() => cart.clear()),
+                child: const Text('Limpar'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton(
+                onPressed: isLoading ? null : _finalizarVenda,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isLoading ? Colors.grey : Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+                child: isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Finalizar Venda'),
+              ),
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  @override
+  void dispose() {
+    _salePointController.dispose();
+    super.dispose();
   }
 }
 
-// --- Componentes Auxiliares (Mesma lógica sua, mantidos fora da classe principal) ---
+// --- Componentes Auxiliares ---
 
 class ProductRow extends StatelessWidget {
   final Product product;
@@ -410,12 +505,12 @@ class CartItemRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('${item['quantity'].toStringAsFixed(2)} ${item['unit']}', 
+                Text('${item['quantity'].toStringAsFixed(2)} ${item['unit']}',
                   style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               ],
             ),
           ),
-          Text('R\$ ${(item['price'] * item['quantity']).toStringAsFixed(2).replaceAll('.', ',')}', 
+          Text('R\$ ${(item['price'] * item['quantity']).toStringAsFixed(2).replaceAll('.', ',')}',
             style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
           const SizedBox(width: 12),
           IconButton(
