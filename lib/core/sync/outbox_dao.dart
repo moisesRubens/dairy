@@ -44,16 +44,20 @@ class OutboxDao {
     });
   }
 
+  /// Só as PENDENTES (status 'pending'). As 'failed' (rejeitadas pelo servidor,
+  /// ex.: 409) ficam estacionadas — não são reenviadas em loop nem contam no
+  /// banner; uma tela de falhas (Fase 4) cuida delas depois.
   Future<List<OutboxEntry>> pending() async {
     final db = await _store.database;
-    final rows = await db.query('outbox', orderBy: 'id ASC');
+    final rows = await db.query('outbox',
+        where: "status = 'pending'", orderBy: 'id ASC');
     return rows.map(OutboxEntry.fromRow).toList();
   }
 
   Future<int> count() async {
     final db = await _store.database;
-    final r =
-        await db.rawQuery('SELECT COUNT(*) AS c FROM outbox');
+    final r = await db.rawQuery(
+        "SELECT COUNT(*) AS c FROM outbox WHERE status = 'pending'");
     return (r.first['c'] as int?) ?? 0;
   }
 

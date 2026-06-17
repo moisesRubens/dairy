@@ -12,6 +12,7 @@ import 'outbox_dao.dart';
 /// reenvio é idempotente no servidor (dedup por `client_uuid`).
 class SyncService extends Notifier<int> {
   OutboxDao get _outbox => OutboxDao(LocalStore.instance);
+  bool _flushing = false;
 
   @override
   int build() {
@@ -31,22 +32,28 @@ class SyncService extends Notifier<int> {
   /// Reenvia as vendas pendentes na ordem. Para no primeiro erro de rede
   /// (ainda offline); erros com resposta marcam a entrada como falha.
   Future<void> flush() async {
+    if (_flushing) return; // evita flushes concorrentes (connectivity + auth)
     if (!ref.read(authControllerProvider).authenticated) return;
-    final dio = ref.read(dioProvider);
-    final pending = await _outbox.pending();
-    var sent = 0;
-    for (final e in pending) {
-      try {
-        await dio.post('/auth/${e.salePointId}/order', data: e.payload);
-        await _outbox.remove(e.id); // sucesso (idempotente) → sai da fila
-        sent++;
-      } on DioException catch (err) {
-        if (err.response == null) break; // ainda offline → para o flush
-        await _outbox.markFailed(e.id, err.message ?? 'erro'); // 4xx/5xx
+    _flushing = true;
+    try {
+      final dio = ref.read(dioProvider);
+      final pending = await _outbox.pending();
+      var sent = 0;
+      for (final e in pending) {
+        try {
+          await dio.post('/auth/${e.salePointId}/order', data: e.payload);
+          await _outbox.remove(e.id); // sucesso (idempotente) → sai da fila
+          sent++;
+        } on DioException catch (err) {
+          if (err.response == null) break; // ainda offline → para o flush
+          await _outbox.markFailed(e.id, err.message ?? 'erro'); // 4xx/5xx
+        }
       }
+      await _refreshCount();
+      if (sent > 0) ref.invalidate(ordersProvider); // atualiza pedidos do dia
+    } finally {
+      _flushing = false;
     }
-    await _refreshCount();
-    if (sent > 0) ref.invalidate(ordersProvider); // atualiza pedidos do dia
   }
 }
 
