@@ -4,21 +4,25 @@ import 'db.dart';
 
 class ProductDao {
 
+  // ============================================================
+  // INSERIR PRODUTO
+  // ============================================================
   Future<int> insertProduct(Product product) async {
     final db = await DB.instance.database;
     
     final Map<String, dynamic> map = {
-      'produtoId': product.id,
+      'produtoId': product.id,  // ← id do backend
       'name': product.name,
       'price': product.price,
-      'amount': product.amount ?? -1,  // Garantir que não seja null
-      'kg': product.kg ?? -1,          // Garantir que não seja null
-      'liters': product.liters ?? -1,  // Garantir que não seja null
+      'amount': product.amount ?? 0,
+      'kg': product.kg ?? 0.0,
+      'liters': product.liters ?? 0.0,
       'updatedAt': DateTime.now().toIso8601String(),
     };
 
+    // Verifica se já existe pelo produtoId (id do backend)
     final existing = await db.query(
-      'produtos',  // Mantém o nome da tabela consistente
+      'produtos',
       where: 'produtoId = ?',
       whereArgs: [product.id],
     );
@@ -34,13 +38,13 @@ class ProductDao {
       return existing.first['id'] as int;
     } else {
       final id = await db.insert('produtos', map);
-      print('✅ Produto "${product.name}" inserido!');
+      print('✅ Produto "${product.name}" inserido! (ID SQLite: $id)');
       return id;
     }
   }
 
   // ============================================================
-  // Inserir múltiplos produtos
+  // INSERIR MÚLTIPLOS PRODUTOS
   // ============================================================
   Future<void> insertProducts(List<Product> products) async {
     for (var product in products) {
@@ -50,7 +54,7 @@ class ProductDao {
   }
 
   // ============================================================
-  // Buscar todos os produtos
+  // BUSCAR TODOS OS PRODUTOS
   // ============================================================
   Future<List<Product>> getAllProducts() async {
     final db = await DB.instance.database;
@@ -61,25 +65,50 @@ class ProductDao {
     );
 
     return results.map((map) => Product(
-      id: map['produtoId'] as int?,
+      id: map['produtoId'] as int?,  // ← id do backend
       name: map['name'] as String,
       price: map['price'] as double?,
-      amount: map['amount'] as int? ?? -1,  // Valor padrão se null
-      kg: map['kg'] as double? ?? -1,       // Valor padrão se null
-      liters: map['liters'] as double? ?? -1, // Valor padrão se null
+      amount: map['amount'] as int?,
+      kg: map['kg'] as double?,
+      liters: map['liters'] as double?,
     )).toList();
   }
 
   // ============================================================
-  // Buscar produto por ID do backend
+  // BUSCAR PRODUTO POR ID LOCAL (SQLite)
   // ============================================================
-  Future<Product?> getProductById(int produtoId) async {
+  Future<Product?> getProductByLocalId(int localId) async {
     final db = await DB.instance.database;
     
     final List<Map<String, dynamic>> results = await db.query(
       'produtos',
-      where: 'produtoId = ?',
-      whereArgs: [produtoId],
+      where: 'id = ?',  // ← id do SQLite
+      whereArgs: [localId],
+    );
+
+    if (results.isEmpty) return null;
+
+    final map = results.first;
+    return Product(
+      id: map['produtoId'] as int?,  // ← id do backend
+      name: map['name'] as String,
+      price: map['price'] as double?,
+      amount: map['amount'] as int?,
+      kg: map['kg'] as double?,
+      liters: map['liters'] as double?,
+    );
+  }
+
+  // ============================================================
+  // BUSCAR PRODUTO POR ID DO BACKEND
+  // ============================================================
+  Future<Product?> getProductByBackendId(int backendId) async {
+    final db = await DB.instance.database;
+    
+    final List<Map<String, dynamic>> results = await db.query(
+      'produtos',
+      where: 'produtoId = ?',  // ← id do backend
+      whereArgs: [backendId],
     );
 
     if (results.isEmpty) return null;
@@ -89,12 +118,15 @@ class ProductDao {
       id: map['produtoId'] as int?,
       name: map['name'] as String,
       price: map['price'] as double?,
-      amount: map['amount'] as int? ?? -1,
-      kg: map['kg'] as double? ?? -1,
-      liters: map['liters'] as double? ?? -1,
+      amount: map['amount'] as int?,
+      kg: map['kg'] as double?,
+      liters: map['liters'] as double?,
     );
   }
 
+  // ============================================================
+  // BUSCAR PRODUTOS POR NOME
+  // ============================================================
   Future<List<Product>> searchProducts(String query) async {
     final db = await DB.instance.database;
     
@@ -109,81 +141,66 @@ class ProductDao {
       id: map['produtoId'] as int?,
       name: map['name'] as String,
       price: map['price'] as double?,
-      amount: map['amount'] as int? ?? -1,
-      kg: map['kg'] as double? ?? -1,
-      liters: map['liters'] as double? ?? -1,
+      amount: map['amount'] as int?,
+      kg: map['kg'] as double?,
+      liters: map['liters'] as double?,
     )).toList();
   }
 
-  Future<bool> updateQuantity(int produtoId, int newAmount) async {
+  // ============================================================
+  // 🔥 ATUALIZAR PRODUTO COMPLETO (USADO PELO ORDER SERVICE)
+  // ============================================================
+  Future<void> updateProduct(Product product) async {
     try {
       final db = await DB.instance.database;
-      await db.update(
+
+      final updates = <String, dynamic>{
+        'name': product.name,
+        'price': product.price,
+        'amount': product.amount ?? 0,
+        'kg': product.kg ?? 0.0,
+        'liters': product.liters ?? 0.0,
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+
+      // 🔥 ATUALIZA PELO ID DO SQLITE
+      // Precisamos encontrar o ID local do SQLite primeiro
+      final existing = await db.query(
         'produtos',
-        {
-          'amount': newAmount,
-          'updatedAt': DateTime.now().toIso8601String(),
-        },
         where: 'produtoId = ?',
-        whereArgs: [produtoId],
+        whereArgs: [product.id],
       );
-      print('📦 Produto ID $produtoId atualizado para $newAmount un');
-      return true;
+
+      if (existing.isNotEmpty) {
+        final localId = existing.first['id'] as int;
+        await db.update(
+          'produtos',
+          updates,
+          where: 'id = ?',
+          whereArgs: [localId],
+        );
+        print('✅ Produto "${product.name}" (ID Backend: ${product.id}) atualizado');
+      } else {
+        print('⚠️ Produto "${product.name}" não encontrado no banco local');
+      }
     } catch (e) {
-      print('❌ Erro ao atualizar quantidade: $e');
-      return false;
+      print('❌ Erro ao atualizar produto: $e');
+      rethrow;
     }
   }
 
-  Future<bool> updateKg(int produtoId, double newKg) async {
-    try {
-      final db = await DB.instance.database;
-      await db.update(
-        'produtos',  
-        {
-          'kg': newKg,
-          'updatedAt': DateTime.now().toIso8601String(),
-        },
-        where: 'produtoId = ?',  
-        whereArgs: [produtoId],
-      );
-      print('📦 Produto ID $produtoId atualizado para $newKg kg');
-      return true;
-    } catch (e) {
-      print('❌ Erro ao atualizar kg: $e');
-      return false;
-    }
-  }
-
-  Future<bool> updateLiters(int produtoId, double newLiters) async {
-    try {
-      final db = await DB.instance.database;
-      await db.update(
-        'produtos',  // CORRIGIDO: era 'products'
-        {
-          'liters': newLiters,
-          'updatedAt': DateTime.now().toIso8601String(),
-        },
-        where: 'produtoId = ?',  // CORRIGIDO: era 'id = ?'
-        whereArgs: [produtoId],
-      );
-      print('📦 Produto ID $produtoId atualizado para $newLiters L');
-      return true;
-    } catch (e) {
-      print('❌ Erro ao atualizar litros: $e');
-      return false;
-    }
-  }
-
-  Future<bool> deleteProduct(int produtoId) async {
+  // ============================================================
+  // DELETAR PRODUTO
+  // ============================================================
+  Future<bool> deleteProduct(int backendId) async {
     try {
       final db = await DB.instance.database;
       await db.delete(
         'produtos',
         where: 'produtoId = ?',
-        whereArgs: [produtoId],
+        whereArgs: [backendId],
       );
-      print('🗑️ Produto ID $produtoId deletado');
+      print('🗑️ Produto ID $backendId deletado');
       return true;
     } catch (e) {
       print('❌ Erro ao deletar: $e');
@@ -191,25 +208,146 @@ class ProductDao {
     }
   }
 
+  // ============================================================
+  // DELETAR TODOS
+  // ============================================================
   Future<void> deleteAll() async {
     final db = await DB.instance.database;
     await db.delete('produtos');
     print('🗑️ Todos os produtos removidos!');
   }
 
+  // ============================================================
+  // CONTAR PRODUTOS
+  // ============================================================
   Future<int> countProducts() async {
     final db = await DB.instance.database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM produtos');
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
-  Future<bool> productExists(int produtoId) async {
+  // ============================================================
+  // VERIFICAR SE PRODUTO EXISTE
+  // ============================================================
+  Future<bool> productExists(int backendId) async {
     final db = await DB.instance.database;
     final result = await db.query(
       'produtos',
       where: 'produtoId = ?',
-      whereArgs: [produtoId],
+      whereArgs: [backendId],
     );
     return result.isNotEmpty;
   }
+
+  // ============================================================
+// ATUALIZAR QUANTIDADE (unidades)
+// ============================================================
+Future<bool> updateQuantity(int backendId, int newAmount) async {
+  try {
+    final db = await DB.instance.database;
+    
+    // Primeiro encontra o ID local pelo backendId
+    final existing = await db.query(
+      'produtos',
+      where: 'produtoId = ?',
+      whereArgs: [backendId],
+    );
+
+    if (existing.isEmpty) {
+      print('⚠️ Produto ID $backendId não encontrado');
+      return false;
+    }
+
+    final localId = existing.first['id'] as int;
+    
+    await db.update(
+      'produtos',
+      {
+        'amount': newAmount,
+        'updatedAt': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [localId],
+    );
+    print('📦 Produto ID $backendId atualizado para $newAmount un');
+    return true;
+  } catch (e) {
+    print('❌ Erro ao atualizar quantidade: $e');
+    return false;
+  }
+}
+
+// ============================================================
+// ATUALIZAR KG
+// ============================================================
+Future<bool> updateKg(int backendId, double newKg) async {
+  try {
+    final db = await DB.instance.database;
+    
+    final existing = await db.query(
+      'produtos',
+      where: 'produtoId = ?',
+      whereArgs: [backendId],
+    );
+
+    if (existing.isEmpty) {
+      print('⚠️ Produto ID $backendId não encontrado');
+      return false;
+    }
+
+    final localId = existing.first['id'] as int;
+    
+    await db.update(
+      'produtos',
+      {
+        'kg': newKg,
+        'updatedAt': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [localId],
+    );
+    print('📦 Produto ID $backendId atualizado para $newKg kg');
+    return true;
+  } catch (e) {
+    print('❌ Erro ao atualizar kg: $e');
+    return false;
+  }
+}
+
+// ============================================================
+// ATUALIZAR LITROS
+// ============================================================
+Future<bool> updateLiters(int backendId, double newLiters) async {
+  try {
+    final db = await DB.instance.database;
+    
+    final existing = await db.query(
+      'produtos',
+      where: 'produtoId = ?',
+      whereArgs: [backendId],
+    );
+
+    if (existing.isEmpty) {
+      print('⚠️ Produto ID $backendId não encontrado');
+      return false;
+    }
+
+    final localId = existing.first['id'] as int;
+    
+    await db.update(
+      'produtos',
+      {
+        'liters': newLiters,
+        'updatedAt': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [localId],
+    );
+    print('📦 Produto ID $backendId atualizado para $newLiters L');
+    return true;
+  } catch (e) {
+    print('❌ Erro ao atualizar litros: $e');
+    return false;
+  }
+}
 }
