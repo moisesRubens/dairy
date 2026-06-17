@@ -47,6 +47,12 @@ dependencies:
   jwt_decoder: ^2.0.1
   # Seleção de foto do produto (galeria) no form de cadastro/edição (admin)
   image_picker: ^1.1.2
+  # Offline-first (P4): cache local em SQLite + caminho do banco + cache de imagens
+  sqflite: ^2.3.0
+  sqflite_common_ffi: ^2.3.4+1 # SQLite em desktop/macOS e testes
+  path: ^1.9.0
+  path_provider: ^2.1.4
+  cached_network_image: ^3.4.1 # fotos de produto disponíveis offline
 
 dev_dependencies:
   flutter_test:
