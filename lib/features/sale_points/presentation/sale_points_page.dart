@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../config/theme.dart';
 import '../../../core/network/dio_provider.dart';
 import '../../../shared/widgets/async_value_widget.dart';
@@ -160,6 +161,10 @@ class SalePointsPage extends ConsumerWidget {
                     children: [
                       for (final p in list)
                         ListTile(
+                          // Toque abre as "Vendas por Banca" daquele ponto.
+                          onTap: () => context.push(
+                              '/admin/points/${p.id}/sales'
+                              '?name=${Uri.encodeQueryComponent(p.name)}'),
                           leading: CircleAvatar(
                             backgroundColor: context.mutedSurface,
                             child: Text(
@@ -172,13 +177,28 @@ class SalePointsPage extends ConsumerWidget {
                           title: Text(p.name,
                               style: const TextStyle(
                                   fontWeight: FontWeight.bold)),
-                          subtitle: (p.email != null && p.email!.isNotEmpty)
-                              ? Text(p.email!)
-                              : null,
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline,
-                                color: AppColors.red),
-                            onPressed: () => _delete(context, ref, p),
+                          subtitle: Text(
+                              (p.email != null && p.email!.isNotEmpty)
+                                  ? p.email!
+                                  : 'Toque para ver as vendas'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: 'Vendas da banca',
+                                icon: const Icon(Icons.receipt_long_outlined,
+                                    color: AppColors.green),
+                                onPressed: () => context.push(
+                                    '/admin/points/${p.id}/sales'
+                                    '?name=${Uri.encodeQueryComponent(p.name)}'),
+                              ),
+                              IconButton(
+                                tooltip: 'Excluir',
+                                icon: const Icon(Icons.delete_outline,
+                                    color: AppColors.red),
+                                onPressed: () => _delete(context, ref, p),
+                              ),
+                            ],
                           ),
                         ),
                     ],

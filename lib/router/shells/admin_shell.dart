@@ -4,6 +4,7 @@ import '../../features/clients/presentation/clients_page.dart';
 import '../../features/metrics/presentation/dashboard_page.dart';
 import '../../features/products/presentation/products_page.dart';
 import '../../features/sale_points/presentation/sale_points_page.dart';
+import '../../features/sales/presentation/sales_by_point_page.dart';
 import '../../features/stock_requests/presentation/approvals_page.dart';
 import 'app_shell_scaffold.dart';
 
@@ -47,8 +48,20 @@ StatefulShellRoute adminShellRoute() {
       ]),
       StatefulShellBranch(routes: [
         GoRoute(
-            path: '/admin/points',
-            builder: (c, s) => const SalePointsPage()),
+          path: '/admin/points',
+          builder: (c, s) => const SalePointsPage(),
+          routes: [
+            // Drill-down "Vendas por Banca": /admin/points/:id/sales
+            GoRoute(
+              path: ':id/sales',
+              builder: (c, s) => SalesByPointPage(
+                salePointId: int.tryParse(s.pathParameters['id'] ?? '') ?? 0,
+                salePointName:
+                    s.uri.queryParameters['name'] ?? 'Vendas da banca',
+              ),
+            ),
+          ],
+        ),
       ]),
     ],
   );
