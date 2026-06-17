@@ -7,16 +7,30 @@ import '../database/product_dao.dart';
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
 
+  // ✅ MÉTODO ESTÁTICO para ser chamado pelo MainShell
+  static Future<void> loadInventory() async {
+    try {
+      // ✅ Agora acessa os membros públicos da classe _InventoryPageState
+      final data = await _InventoryPageState.productService.getProducts();
+      _InventoryPageState.productsNotifier.value = data;
+      print('✅ Estoque recarregado: ${data.length} produtos');
+    } catch (e) {
+      print('❌ Erro ao carregar estoque: $e');
+    }
+  }
+
   @override
   State<InventoryPage> createState() => _InventoryPageState();
 }
 
 class _InventoryPageState extends State<InventoryPage> {
-  final ProductService _productService = ProductService();
+  // ✅ Tornando públicos (sem underscore)
+  static final ProductService productService = ProductService();
+  static final ValueNotifier<List<Product>> productsNotifier = ValueNotifier([]);
+  
   final OutboundService _outboundService = OutboundService();
   final ProductDao _productDao = ProductDao();
-
-  List<Product> _products = [];
+  
   bool _isLoading = true;
 
   int? _expandedProductId;
@@ -36,12 +50,13 @@ class _InventoryPageState extends State<InventoryPage> {
   Future<void> _loadProducts() async {
     setState(() => _isLoading = true);
     try {
-      final data = await _productService.getProducts();
+      final data = await productService.getProducts();
       if (!mounted) return;
       
-      // ❌ NÃO salva no banco
+      // ✅ Atualiza o ValueNotifier público
+      productsNotifier.value = data;
+      
       setState(() {
-        _products = data;
         _isLoading = false;
       });
     } catch (e) {
@@ -49,8 +64,8 @@ class _InventoryPageState extends State<InventoryPage> {
       try {
         final localProducts = await _productDao.getAllProducts();
         if (!mounted) return;
+        productsNotifier.value = localProducts;
         setState(() {
-          _products = localProducts;
           _isLoading = false;
         });
         print('💾 ${localProducts.length} produtos carregados do banco (retiradas)');
@@ -89,24 +104,17 @@ class _InventoryPageState extends State<InventoryPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'ESTOQUE DE PRODUTOS',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.refresh),
-                            onPressed: _loadProducts,
-                          )
-                        ],
-                      ),
+                      
                       const SizedBox(height: 20),
                       
-                      _products.isEmpty 
-                        ? const Center(child: Text("Nenhum produto encontrado."))
-                        : GridView.builder(
+                      // ✅ ValueListenableBuilder com o notifier público
+                      ValueListenableBuilder<List<Product>>(
+                        valueListenable: productsNotifier,
+                        builder: (context, products, child) {
+                          if (products.isEmpty) {
+                            return const Center(child: Text("Nenhum produto encontrado."));
+                          }
+                          return GridView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -115,12 +123,14 @@ class _InventoryPageState extends State<InventoryPage> {
                               mainAxisSpacing: 16,
                               childAspectRatio: 0.75,
                             ),
-                            itemCount: _products.length,
+                            itemCount: products.length,
                             itemBuilder: (context, index) {
-                              final product = _products[index];
+                              final product = products[index];
                               return _buildProductCard(product);
                             },
-                          ),
+                          );
+                        },
+                      ),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -139,14 +149,10 @@ class _InventoryPageState extends State<InventoryPage> {
     if (quantity == null) return "0";
     if (quantity is int) return quantity.toString();
     
-    // Para double, formata com 2 casas decimais
     String formatted = quantity.toStringAsFixed(2).replaceAll('.', ',');
     
-    // Remove zeros desnecessários (ex: 2,50 → 2,5 | 2,00 → 2)
     if (formatted.contains(',')) {
-      // Remove zeros à direita
       formatted = formatted.replaceAll(RegExp(r'0+$'), '');
-      // Remove a vírgula se não houver mais números
       if (formatted.endsWith(',')) {
         formatted = formatted.substring(0, formatted.length - 1);
       }
@@ -228,7 +234,6 @@ class _InventoryPageState extends State<InventoryPage> {
                           fontSize: 15,
                         ),
                       ),
-                      // 🔥 CORRIGIDO: Usando a função _formatQuantity
                       Text(
                         '$unit ${_formatQuantity(quantity)}',
                         style: const TextStyle(
@@ -260,7 +265,6 @@ class _InventoryPageState extends State<InventoryPage> {
                   ),
                   if (isExpanded) ...[
                     const SizedBox(height: 8),
-                    // 🔥 CORRIGIDO: Usando a função _formatQuantity
                     Text(
                       "Estoque: ${_formatQuantity(quantity)} $unit",
                       style: const TextStyle(fontSize: 12)
@@ -370,9 +374,10 @@ class _InventoryPageState extends State<InventoryPage> {
       return;
     }
 
+    // ✅ Usa productsNotifier.value em vez de _productsNotifier
     final Map<Product, double> outboundsMap = {};
     for (int productId in _selectedProductIds) {
-      final product = _products.firstWhere((p) => p.id == productId);
+      final product = productsNotifier.value.firstWhere((p) => p.id == productId);
       outboundsMap[product] = quantity;
     }
 
