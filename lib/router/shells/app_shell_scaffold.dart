@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
 import '../../core/network/connectivity_provider.dart';
+import '../../core/sync/sync_service.dart';
 import '../../features/auth/application/auth_controller.dart';
 
 /// Casca compartilhada pelos dois shells (admin e vendedor): AppBar preta,
@@ -21,6 +22,14 @@ class AppShellScaffold extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // valueOrNull ?? true: enquanto resolve, assume online (não pisca o banner).
     final isOnline = ref.watch(isOnlineProvider).valueOrNull ?? true;
+    // watch mantém o SyncService vivo (faz flush ao reconectar) + nº de pendências.
+    final pending = ref.watch(syncServiceProvider);
+    final showBanner = !isOnline || pending > 0;
+    final bannerText = !isOnline
+        ? (pending > 0
+            ? 'Sem conexão · $pending venda(s) pendente(s)'
+            : 'Sem conexão — usando dados locais')
+        : 'Sincronizando $pending venda(s)…';
     return Scaffold(
       appBar: AppBar(
         shape: Border(bottom: BorderSide(color: Colors.grey[800]!, width: 2)),
@@ -29,7 +38,7 @@ class AppShellScaffold extends ConsumerWidget {
       drawer: const _AppDrawer(),
       body: Column(
         children: [
-          if (!isOnline) const _OfflineBanner(),
+          if (showBanner) _OfflineBanner(text: bannerText, online: isOnline),
           Expanded(child: navigationShell),
         ],
       ),
@@ -47,25 +56,28 @@ class AppShellScaffold extends ConsumerWidget {
   }
 }
 
-/// Faixa de "sem conexão" (Nielsen: visibilidade do estado do sistema).
-/// Âmbar, consistente com os avisos de estoque baixo. Some quando volta a rede.
+/// Faixa de estado do sistema (Nielsen: visibilidade). Âmbar quando offline;
+/// preto quando online sincronizando vendas pendentes do outbox.
 class _OfflineBanner extends StatelessWidget {
-  const _OfflineBanner();
+  final String text;
+  final bool online;
+  const _OfflineBanner({required this.text, required this.online});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: const Color(0xFFB8860B),
+      color: online ? AppColors.black : const Color(0xFFB8860B),
       padding:
           const EdgeInsets.symmetric(vertical: 6, horizontal: AppSpacing.md),
-      child: const Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.cloud_off_outlined, color: AppColors.white, size: 16),
-          SizedBox(width: AppSpacing.sm),
-          Text('Sem conexão — usando dados locais',
-              style: TextStyle(
+          Icon(online ? Icons.sync : Icons.cloud_off_outlined,
+              color: AppColors.white, size: 16),
+          const SizedBox(width: AppSpacing.sm),
+          Text(text,
+              style: const TextStyle(
                   color: AppColors.white,
                   fontSize: 12,
                   fontWeight: FontWeight.bold)),
