@@ -93,7 +93,7 @@ class SalePointController {
   }
 
   // Método para atualizar produtos localmente
-  void _atualizarProdutosLocais(Map<Product, int> outboundsQuantity) {
+  void _atualizarProdutosLocais(Map<Product, double> outboundsQuantity) {
     final currentList = List<Product>.from(productsNotifier.value);
 
     outboundsQuantity.forEach((product, quantity) {
@@ -102,11 +102,11 @@ class SalePointController {
       if (existingIndex != -1) {
         // Produto já existe, atualiza a quantidade
         final p = currentList[existingIndex];
-        if (p.amount != null) {
-          p.amount = (p.amount ?? 0) + quantity;
-        } else if (p.kg != null) {
+        if (p.amount != -1) {
+          p.amount = (p.amount ?? 0) + quantity.toInt();
+        } else if (p.kg != -1) {
           p.kg = (p.kg ?? 0) + quantity.toDouble();
-        } else if (p.liters != null) {
+        } else if (p.liters != -1) {
           p.liters = (p.liters ?? 0) + quantity.toDouble();
         }
       } else {
@@ -115,9 +115,9 @@ class SalePointController {
           id: product.id,
           name: product.name,
           price: product.price,
-          amount: product.amount != null ? quantity : null,
-          kg: product.kg != null ? quantity.toDouble() : null,
-          liters: product.liters != null ? quantity.toDouble() : null,
+          amount: product.amount != -1 ? quantity.toInt() : null,
+          kg: product.kg != -1 ? quantity.toDouble() : null,
+          liters: product.liters != -1 ? quantity.toDouble() : null,
         ));
       }
     });

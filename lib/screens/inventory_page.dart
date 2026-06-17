@@ -133,6 +133,29 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   // ============================================================
+  // MÉTODO AUXILIAR PARA FORMATAR QUANTIDADE
+  // ============================================================
+  String _formatQuantity(num? quantity) {
+    if (quantity == null) return "0";
+    if (quantity is int) return quantity.toString();
+    
+    // Para double, formata com 2 casas decimais
+    String formatted = quantity.toStringAsFixed(2).replaceAll('.', ',');
+    
+    // Remove zeros desnecessários (ex: 2,50 → 2,5 | 2,00 → 2)
+    if (formatted.contains(',')) {
+      // Remove zeros à direita
+      formatted = formatted.replaceAll(RegExp(r'0+$'), '');
+      // Remove a vírgula se não houver mais números
+      if (formatted.endsWith(',')) {
+        formatted = formatted.substring(0, formatted.length - 1);
+      }
+    }
+    
+    return formatted;
+  }
+
+  // ============================================================
   // BUILD PRODUCT CARD
   // ============================================================
   Widget _buildProductCard(Product product) {
@@ -141,13 +164,13 @@ class _InventoryPageState extends State<InventoryPage> {
     num? quantity;
     String unit = '';
 
-    if (product.amount != null) {
+    if (product.amount != -1) {
       quantity = product.amount;
       unit = "un";
-    } else if (product.kg != null) {
+    } else if (product.kg != -1) {
       quantity = product.kg;
       unit = "kg";
-    } else if (product.liters != null) {
+    } else if (product.liters != -1) {
       quantity = product.liters;
       unit = "L";
     }
@@ -182,7 +205,7 @@ class _InventoryPageState extends State<InventoryPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.all(6.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -205,8 +228,9 @@ class _InventoryPageState extends State<InventoryPage> {
                           fontSize: 15,
                         ),
                       ),
+                      // 🔥 CORRIGIDO: Usando a função _formatQuantity
                       Text(
-                        '$unit ${quantity is int ? quantity : quantity?.toStringAsFixed(2).replaceAll('.', ',') ?? "0"}',
+                        '$unit ${_formatQuantity(quantity)}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -236,7 +260,11 @@ class _InventoryPageState extends State<InventoryPage> {
                   ),
                   if (isExpanded) ...[
                     const SizedBox(height: 8),
-                    Text("Estoque: ${quantity ?? 0} $unit", style: const TextStyle(fontSize: 12)),
+                    // 🔥 CORRIGIDO: Usando a função _formatQuantity
+                    Text(
+                      "Estoque: ${_formatQuantity(quantity)} $unit",
+                      style: const TextStyle(fontSize: 12)
+                    ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
@@ -329,8 +357,8 @@ class _InventoryPageState extends State<InventoryPage> {
   // HANDLE OUTBOUND CREATION
   // ============================================================
   Future<void> _handleOutboundCreation() async {
-    final String quantityText = _quantityController.text;
-    final int? quantity = int.tryParse(quantityText);
+    final String quantityText = _quantityController.text.replaceAll(',', '.');
+    final double? quantity = double.tryParse(quantityText);
 
     if (quantity == null || quantity <= 0) {
       _showSnackBar('Por favor, insira uma quantidade válida.', Colors.red);
@@ -342,7 +370,7 @@ class _InventoryPageState extends State<InventoryPage> {
       return;
     }
 
-    final Map<Product, int> outboundsMap = {};
+    final Map<Product, double> outboundsMap = {};
     for (int productId in _selectedProductIds) {
       final product = _products.firstWhere((p) => p.id == productId);
       outboundsMap[product] = quantity;
@@ -366,7 +394,7 @@ class _InventoryPageState extends State<InventoryPage> {
       
     } else {
       setState(() => _isLoading = false);
-      _showSnackBar('Falha ao registrar saída. Verifique a conexão ou tente novamente.', Colors.red);
+      _showSnackBar('Falha ao registrar saída. Verifique a conexão ou tente novamente', Colors.red);
     }
   }
 
