@@ -49,4 +49,37 @@ void main() {
     await outbox.remove(pending.first.id);
     expect(await outbox.count(), 0);
   });
+
+  testWidgets('falha estaciona (fora do count) e retry recoloca como pendente',
+      (tester) async {
+    final outbox = OutboxDao(LocalStore.instance);
+    for (final e in await outbox.all()) {
+      await outbox.remove(e.id);
+    }
+
+    await outbox.enqueue(clientUuid: 'u-1', salePointId: 3, payload: {
+      'client_uuid': 'u-1',
+      'items': [
+        {'product_id': 1, 'kg': 1}
+      ],
+    });
+    final pend = await outbox.pending();
+    expect(pend.length, 1);
+
+    // Rejeitada pelo servidor (4xx) → estaciona: sai do count, fica em all().
+    await outbox.markFailed(pend.first.id, 'Sem estoque');
+    expect(await outbox.count(), 0);
+    final all = await outbox.all();
+    expect(all.length, 1);
+    expect(all.first.isFailed, true);
+    expect(all.first.error, 'Sem estoque');
+
+    // Retry manual recoloca na fila.
+    await outbox.retry(all.first.id);
+    expect(await outbox.count(), 1);
+
+    for (final e in await outbox.all()) {
+      await outbox.remove(e.id);
+    }
+  });
 }
