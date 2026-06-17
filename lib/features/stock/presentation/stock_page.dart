@@ -128,22 +128,27 @@ class _OutboundTile extends StatelessWidget {
   final Color color;
   const _OutboundTile({required this.o, required this.color});
 
+  /// Mostra inteiros sem ".0" mas preserva decimais reais (kg/L fracionários).
+  static String _qty(num n) =>
+      n == n.roundToDouble() ? n.toStringAsFixed(0) : n.toString();
+
   @override
   Widget build(BuildContext context) {
+    final hasObs = o.observation != null && o.observation!.isNotEmpty;
     return ListTile(
       title: Text(o.name,
           style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Text(
-          'Retirado ${o.takenQuantity.toStringAsFixed(0)} · '
-          'Vendido ${o.soldQuantity.toStringAsFixed(0)} ${o.unitLabel}'
-          '${o.observation != null && o.observation!.isNotEmpty ? '\n${o.observation}' : ''}',
+          'Retirado ${_qty(o.takenQuantity)} · '
+          'Vendido ${_qty(o.soldQuantity)} ${o.unitLabel}'
+          '${hasObs ? '\n${o.observation}' : ''}',
           style: const TextStyle(color: AppColors.grey, fontSize: 12)),
-      isThreeLine: o.observation != null && o.observation!.isNotEmpty,
+      isThreeLine: hasObs,
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text('${o.remainingQuantity.toStringAsFixed(0)} ${o.unitLabel}',
+          Text('${_qty(o.remainingQuantity)} ${o.unitLabel}',
               style: TextStyle(
                   color: color, fontWeight: FontWeight.bold, fontSize: 16)),
           const Text('resta',
