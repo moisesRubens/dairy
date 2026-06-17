@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/clients/presentation/clients_page.dart';
 import '../../features/metrics/presentation/dashboard_page.dart';
+import '../../features/products/presentation/products_page.dart';
 import '../../features/stock_requests/presentation/approvals_page.dart';
 import 'app_shell_scaffold.dart';
 
-/// Shell do ADMIN: Painel · Aprovações · Estoque · Pontos.
-/// Telas reais entram em commits seguintes (placeholders por enquanto).
+/// Shell do ADMIN: Painel · Aprovações · Clientes · Produtos · Pontos.
 StatefulShellRoute adminShellRoute() {
   return StatefulShellRoute.indexedStack(
     builder: (context, state, navigationShell) => AppShellScaffold(
@@ -18,6 +18,8 @@ StatefulShellRoute adminShellRoute() {
             icon: Icon(Icons.inbox_outlined), label: 'Aprovações'),
         BottomNavigationBarItem(
             icon: Icon(Icons.people_alt_outlined), label: 'Clientes'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.inventory_2_outlined), label: 'Produtos'),
         BottomNavigationBarItem(
             icon: Icon(Icons.storefront_outlined), label: 'Pontos'),
       ],
@@ -36,6 +38,11 @@ StatefulShellRoute adminShellRoute() {
       StatefulShellBranch(routes: [
         GoRoute(
             path: '/admin/clients', builder: (c, s) => const ClientsPage()),
+      ]),
+      StatefulShellBranch(routes: [
+        GoRoute(
+            path: '/admin/products',
+            builder: (c, s) => const ProductsPage()),
       ]),
       StatefulShellBranch(routes: [
         GoRoute(

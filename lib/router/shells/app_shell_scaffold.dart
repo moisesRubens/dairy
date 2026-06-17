@@ -26,6 +26,8 @@ class AppShellScaffold extends ConsumerWidget {
       drawer: const _AppDrawer(),
       body: navigationShell,
       bottomNavigationBar: BottomNavigationBar(
+        // fixed: com 4+ abas, mantém rótulos sempre visíveis (sem animação shifting).
+        type: BottomNavigationBarType.fixed,
         currentIndex: navigationShell.currentIndex,
         onTap: (index) => navigationShell.goBranch(
           index,
