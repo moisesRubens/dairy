@@ -1,25 +1,42 @@
 import 'dart:convert';
 import '../local/local_store.dart';
 
-/// Uma venda pendente de sincronização (gravada offline).
+/// Uma venda na fila de sincronização (gravada offline).
 class OutboxEntry {
   final int id;
   final String clientUuid;
   final int salePointId;
   final Map<String, dynamic> payload;
+  final String status; // pending | failed
+  final String? error;
+  final DateTime? createdAt;
 
   OutboxEntry({
     required this.id,
     required this.clientUuid,
     required this.salePointId,
     required this.payload,
+    required this.status,
+    this.error,
+    this.createdAt,
   });
+
+  bool get isFailed => status == 'failed';
+
+  /// Itens da venda (para resumir na tela): [{product_id, amount|kg|liters}].
+  List get items => (payload['items'] as List?) ?? const [];
+  String? get paymentMethod => payload['payment_method'] as String?;
 
   factory OutboxEntry.fromRow(Map<String, Object?> r) => OutboxEntry(
         id: r['id'] as int,
         clientUuid: r['client_uuid'] as String,
         salePointId: r['sale_point_id'] as int,
         payload: jsonDecode(r['payload'] as String) as Map<String, dynamic>,
+        status: r['status'] as String? ?? 'pending',
+        error: r['error'] as String?,
+        createdAt: r['created_at'] != null
+            ? DateTime.tryParse(r['created_at'] as String)
+            : null,
       );
 }
 
@@ -59,6 +76,22 @@ class OutboxDao {
     final r = await db.rawQuery(
         "SELECT COUNT(*) AS c FROM outbox WHERE status = 'pending'");
     return (r.first['c'] as int?) ?? 0;
+  }
+
+  /// Todas as entradas (pendentes + falhas), mais recentes primeiro — para a
+  /// tela de Sincronização.
+  Future<List<OutboxEntry>> all() async {
+    final db = await _store.database;
+    final rows = await db.query('outbox', orderBy: 'id DESC');
+    return rows.map(OutboxEntry.fromRow).toList();
+  }
+
+  /// Recoloca uma entrada falha de volta na fila (status 'pending') para nova
+  /// tentativa manual.
+  Future<void> retry(int id) async {
+    final db = await _store.database;
+    await db.update('outbox', {'status': 'pending', 'error': null},
+        where: 'id = ?', whereArgs: [id]);
   }
 
   /// Sucesso no reenvio → remove da fila.

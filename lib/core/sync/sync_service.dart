@@ -29,6 +29,9 @@ class SyncService extends Notifier<int> {
 
   Future<void> _refreshCount() async => state = await _outbox.count();
 
+  /// Recalcula o nº de pendências (após descartar/retry na tela de Sincronização).
+  Future<void> refreshCount() => _refreshCount();
+
   /// Reenvia as vendas pendentes na ordem. Para no primeiro erro de rede
   /// (ainda offline); erros com resposta marcam a entrada como falha.
   Future<void> flush() async {
@@ -59,3 +62,7 @@ class SyncService extends Notifier<int> {
 
 final syncServiceProvider =
     NotifierProvider<SyncService, int>(SyncService.new);
+
+/// Todas as vendas na fila (pendentes + falhas) para a tela de Sincronização.
+final outboxEntriesProvider = FutureProvider.autoDispose<List<OutboxEntry>>(
+    (ref) => OutboxDao(LocalStore.instance).all());

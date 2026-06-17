@@ -5,6 +5,7 @@ import '../../config/theme.dart';
 import '../../core/network/connectivity_provider.dart';
 import '../../core/sync/sync_service.dart';
 import '../../features/auth/application/auth_controller.dart';
+import '../../features/sync/presentation/sync_page.dart';
 
 /// Casca compartilhada pelos dois shells (admin e vendedor): AppBar preta,
 /// Drawer ciente do papel com logout, e a BottomNavigationBar do papel.
@@ -126,6 +127,31 @@ class _AppDrawer extends ConsumerWidget {
               ],
             ),
           ),
+          Consumer(builder: (context, ref, _) {
+            final pending = ref.watch(syncServiceProvider);
+            return ListTile(
+              leading: const Icon(Icons.sync, color: AppColors.black),
+              title: const Text('SINCRONIZAÇÃO',
+                  style:
+                      TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              trailing: pending > 0
+                  ? CircleAvatar(
+                      radius: 11,
+                      backgroundColor: const Color(0xFFB8860B),
+                      child: Text('$pending',
+                          style: const TextStyle(
+                              color: AppColors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                    )
+                  : null,
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const SyncPage()));
+              },
+            );
+          }),
           ListTile(
             leading: const Icon(Icons.logout_outlined, color: AppColors.red),
             title: const Text('SAIR',
