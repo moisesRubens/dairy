@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/clients/presentation/clients_page.dart';
 import '../../features/metrics/presentation/dashboard_page.dart';
 import '../../features/products/presentation/products_page.dart';
+import '../../features/sale_points/presentation/sale_points_page.dart';
 import '../../features/stock_requests/presentation/approvals_page.dart';
 import 'app_shell_scaffold.dart';
 
@@ -47,8 +48,7 @@ StatefulShellRoute adminShellRoute() {
       StatefulShellBranch(routes: [
         GoRoute(
             path: '/admin/points',
-            builder: (c, s) => const ShellPlaceholder(
-                title: 'Pontos de Venda', icon: Icons.storefront_outlined)),
+            builder: (c, s) => const SalePointsPage()),
       ]),
     ],
   );
