@@ -31,6 +31,21 @@
 
   <title>dairy</title>
   <link rel="manifest" href="manifest.json">
+  
+  <!-- 🔥 ADICIONAR: Service Worker do sqflite -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sqflite_sw.js')
+          .then(function(registration) {
+            console.log('✅ Service Worker do sqflite registrado com sucesso!');
+          })
+          .catch(function(error) {
+            console.log('❌ Falha ao registrar Service Worker:', error);
+          });
+      });
+    }
+  </script>
 </head>
 <body>
   <!--
