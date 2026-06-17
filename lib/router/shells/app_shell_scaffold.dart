@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
+import '../../core/network/connectivity_provider.dart';
 import '../../features/auth/application/auth_controller.dart';
 
 /// Casca compartilhada pelos dois shells (admin e vendedor): AppBar preta,
@@ -18,13 +19,20 @@ class AppShellScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // valueOrNull ?? true: enquanto resolve, assume online (não pisca o banner).
+    final isOnline = ref.watch(isOnlineProvider).valueOrNull ?? true;
     return Scaffold(
       appBar: AppBar(
         shape: Border(bottom: BorderSide(color: Colors.grey[800]!, width: 2)),
         title: const Text('Fazenda Boa Esperança'),
       ),
       drawer: const _AppDrawer(),
-      body: navigationShell,
+      body: Column(
+        children: [
+          if (!isOnline) const _OfflineBanner(),
+          Expanded(child: navigationShell),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         // fixed: com 4+ abas, mantém rótulos sempre visíveis (sem animação shifting).
         type: BottomNavigationBarType.fixed,
@@ -34,6 +42,34 @@ class AppShellScaffold extends ConsumerWidget {
           initialLocation: index == navigationShell.currentIndex,
         ),
         items: items,
+      ),
+    );
+  }
+}
+
+/// Faixa de "sem conexão" (Nielsen: visibilidade do estado do sistema).
+/// Âmbar, consistente com os avisos de estoque baixo. Some quando volta a rede.
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFB8860B),
+      padding:
+          const EdgeInsets.symmetric(vertical: 6, horizontal: AppSpacing.md),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.cloud_off_outlined, color: AppColors.white, size: 16),
+          SizedBox(width: AppSpacing.sm),
+          Text('Sem conexão — usando dados locais',
+              style: TextStyle(
+                  color: AppColors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold)),
+        ],
       ),
     );
   }
