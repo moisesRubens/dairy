@@ -9,6 +9,7 @@ import '../../clients/domain/client.dart';
 import '../../orders/data/order_repository.dart';
 import '../../products/data/product_repository.dart';
 import '../../products/domain/product.dart';
+import '../../products/presentation/widgets/product_image.dart';
 import '../application/cart_provider.dart';
 
 class PosHomePage extends ConsumerWidget {
@@ -48,17 +49,19 @@ class PosHomePage extends ConsumerWidget {
                     icon: Icons.inventory_2_outlined,
                     title: 'Nenhum produto');
               }
-              return Container(
-                decoration: BoxDecoration(
-                  color: context.cardSurface,
-                  borderRadius: BorderRadius.circular(AppRadii.table),
-                  border: Border.all(color: context.borderColor),
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                gridDelegate:
+                    const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 180,
+                  mainAxisSpacing: AppSpacing.md,
+                  crossAxisSpacing: AppSpacing.md,
+                  childAspectRatio: 0.78,
                 ),
-                child: Column(
-                  children: [
-                    for (final p in list) _ProductRow(product: p),
-                  ],
-                ),
+                itemCount: list.length,
+                itemBuilder: (context, i) => _ProductTile(product: list[i]),
               );
             },
           ),
@@ -108,16 +111,91 @@ class _RevenueCard extends StatelessWidget {
   }
 }
 
-class _ProductRow extends ConsumerStatefulWidget {
+/// Card de produto no PDV: foto grande para reconhecimento. Toque abre a
+/// entrada de quantidade (bottom sheet) e adiciona ao carrinho.
+class _ProductTile extends ConsumerWidget {
   final Product product;
-  const _ProductRow({required this.product});
+  const _ProductTile({required this.product});
+
+  Future<void> _pickQuantity(BuildContext context, WidgetRef ref) async {
+    final qty = await showModalBottomSheet<double>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => _QuantitySheet(product: product),
+    );
+    if (qty == null || qty <= 0) return;
+    ref.read(cartProvider.notifier).add(product, qty);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('${product.name} adicionado'),
+      backgroundColor: AppColors.green,
+      duration: const Duration(milliseconds: 900),
+    ));
+  }
 
   @override
-  ConsumerState<_ProductRow> createState() => _ProductRowState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Material(
+      color: context.cardSurface,
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: InkWell(
+        onTap: () => _pickQuantity(context, ref),
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.card),
+            border: Border.all(color: context.borderColor),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AspectRatio(
+                aspectRatio: 1,
+                child: ProductImage(
+                  product: product,
+                  size: double.infinity,
+                  radius: AppRadii.card,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 2),
+                    Text(
+                        '${currencyBRL(product.price ?? 0)} / ${product.unitLabel}',
+                        style: const TextStyle(
+                            color: AppColors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _ProductRowState extends ConsumerState<_ProductRow> {
-  final _controller = TextEditingController();
+/// Folha de quantidade para adicionar um produto ao carrinho no PDV.
+class _QuantitySheet extends StatefulWidget {
+  final Product product;
+  const _QuantitySheet({required this.product});
+
+  @override
+  State<_QuantitySheet> createState() => _QuantitySheetState();
+}
+
+class _QuantitySheetState extends State<_QuantitySheet> {
+  final _controller = TextEditingController(text: '1');
 
   @override
   void dispose() {
@@ -125,54 +203,68 @@ class _ProductRowState extends ConsumerState<_ProductRow> {
     super.dispose();
   }
 
-  void _add() {
+  void _confirm() {
     final qty = double.tryParse(_controller.text.replaceAll(',', '.')) ?? 0;
-    if (qty <= 0) return;
-    ref.read(cartProvider.notifier).add(widget.product, qty);
-    _controller.clear();
-    FocusScope.of(context).unfocus();
+    Navigator.pop(context, qty);
   }
 
   @override
   Widget build(BuildContext context) {
     final p = widget.product;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
+      padding: EdgeInsets.only(
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        top: AppSpacing.lg,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(p.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('${currencyBRL(p.price ?? 0)} / ${p.unitLabel}',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: 64,
-            child: TextField(
-              controller: _controller,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              textAlign: TextAlign.center,
-              decoration: const InputDecoration(
-                hintText: 'Qtd',
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                isDense: true,
+          Row(
+            children: [
+              ProductImage(product: p, size: 56, radius: AppRadii.table),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(p.name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('${currencyBRL(p.price ?? 0)} / ${p.unitLabel}',
+                        style: const TextStyle(
+                            color: AppColors.green,
+                            fontWeight: FontWeight.bold)),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          IconButton(
-            onPressed: _add,
-            icon: const Icon(Icons.add_circle, color: AppColors.green),
+          const SizedBox(height: AppSpacing.lg),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+                labelText: 'Quantidade (${p.unitLabel})',
+                prefixIcon: const Icon(Icons.scale_outlined)),
+            onSubmitted: (_) => _confirm(),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _confirm,
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.green,
+                  foregroundColor: AppColors.white),
+              icon: const Icon(Icons.add_shopping_cart),
+              label: const Text('ADICIONAR',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, letterSpacing: 1)),
+            ),
           ),
         ],
       ),
