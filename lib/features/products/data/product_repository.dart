@@ -18,6 +18,55 @@ class ProductRepository {
       throw toApiException(e);
     }
   }
+
+  /// Cadastra um produto (admin). O backend recebe nome/preço/quantidade por
+  /// QUERY PARAMS (não body). [unit] é a unidade ('amount'|'kg'|'liters') e só
+  /// esse campo de quantidade é enviado. Para 'amount' o backend espera inteiro
+  /// — enviar double geraria 422.
+  Future<void> create({
+    required String name,
+    required double price,
+    required String unit,
+    required double quantity,
+  }) async {
+    try {
+      await _dio.post('/products/', queryParameters: {
+        'name': name,
+        'price': price,
+        unit: unit == 'amount' ? quantity.toInt() : quantity,
+      });
+    } catch (e) {
+      throw toApiException(e);
+    }
+  }
+
+  /// Edita um produto (admin) via body. O backend exige name+price presentes
+  /// (campos required-nullable no DTO), então sempre os enviamos.
+  Future<void> update(
+    int id, {
+    required String name,
+    required double price,
+    required String unit,
+    required double quantity,
+  }) async {
+    try {
+      await _dio.patch('/products/$id', data: {
+        'name': name,
+        'price': price,
+        unit: unit == 'amount' ? quantity.toInt() : quantity,
+      });
+    } catch (e) {
+      throw toApiException(e);
+    }
+  }
+
+  Future<void> delete(int id) async {
+    try {
+      await _dio.delete('/products/$id');
+    } catch (e) {
+      throw toApiException(e);
+    }
+  }
 }
 
 final productRepositoryProvider =
