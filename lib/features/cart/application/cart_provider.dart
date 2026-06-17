@@ -37,14 +37,15 @@ class Cart extends Notifier<List<CartLine>> {
 
   double get total => state.fold<double>(0, (sum, l) => sum + l.subtotal);
 
-  /// Finaliza a venda: monta os itens, persiste via API e, em caso de
-  /// sucesso, limpa o carrinho e invalida pedidos + métricas.
-  Future<void> checkout() async {
+  /// Finaliza a venda: monta os itens, persiste (online ou enfileira offline) e,
+  /// em caso de sucesso, limpa o carrinho e invalida pedidos. Retorna `true` se
+  /// foi enviada online; `false` se ficou registrada offline (será sincronizada).
+  Future<bool> checkout() async {
     final salePointId = ref.read(currentSalePointIdProvider);
     if (salePointId == null) {
       throw StateError('Sessão inválida');
     }
-    if (state.isEmpty) return;
+    if (state.isEmpty) return true;
 
     final items = state
         .map((l) => <String, dynamic>{
@@ -55,7 +56,7 @@ class Cart extends Notifier<List<CartLine>> {
 
     final clientId = ref.read(selectedClientProvider)?.id;
     final payment = ref.read(selectedPaymentProvider);
-    await ref.read(orderRepositoryProvider).createOrder(
+    final sentOnline = await ref.read(orderRepositoryProvider).createOrder(
           salePointId,
           items,
           clientId: clientId,
@@ -66,6 +67,7 @@ class Cart extends Notifier<List<CartLine>> {
     ref.read(selectedClientProvider.notifier).state = null;
     ref.read(selectedPaymentProvider.notifier).state = 'dinheiro';
     ref.invalidate(ordersProvider);
+    return sentOnline;
   }
 }
 

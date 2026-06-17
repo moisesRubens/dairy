@@ -18,7 +18,7 @@ class LocalStore {
   static final LocalStore instance = LocalStore._();
 
   static Database? _db;
-  static const int _version = 2;
+  static const int _version = 3;
 
   Future<Database> get database async => _db ??= await _open();
 
@@ -62,10 +62,20 @@ class LocalStore {
       observacao TEXT, updated_at TEXT
     )''';
 
+  // Fila de ESCRITA offline (vendas). `client_uuid` único garante idempotência
+  // no flush; `payload` é o body JSON do POST a reenviar.
+  static const String _createOutbox = '''
+    CREATE TABLE outbox (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, client_uuid TEXT UNIQUE,
+      sale_point_id INTEGER NOT NULL, payload TEXT NOT NULL,
+      created_at TEXT, status TEXT, error TEXT
+    )''';
+
   Future<void> _onCreate(Database db, int version) async {
     await db.execute(_createProducts);
     await db.execute(_createClients);
     await db.execute(_createOutbounds);
+    await db.execute(_createOutbox);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -73,6 +83,10 @@ class LocalStore {
     if (oldVersion < 2) {
       await db.execute(_createClients);
       await db.execute(_createOutbounds);
+    }
+    // v2 → v3: fila de escrita offline (vendas).
+    if (oldVersion < 3) {
+      await db.execute(_createOutbox);
     }
   }
 }

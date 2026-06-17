@@ -285,11 +285,14 @@ class _CartSectionState extends ConsumerState<_CartSection> {
     setState(() => _busy = true);
     final total = ref.read(cartProvider.notifier).total;
     try {
-      await ref.read(cartProvider.notifier).checkout();
+      final sentOnline = await ref.read(cartProvider.notifier).checkout();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Venda finalizada · ${currencyBRL(total)}'),
-        backgroundColor: AppColors.green,
+        content: Text(sentOnline
+            ? 'Venda finalizada · ${currencyBRL(total)}'
+            : 'Venda registrada offline · ${currencyBRL(total)} — '
+                'sincroniza ao voltar a rede'),
+        backgroundColor: sentOnline ? AppColors.green : const Color(0xFFB8860B),
       ));
     } catch (e) {
       if (!mounted) return;
