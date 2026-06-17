@@ -18,6 +18,7 @@ migrate_working_dir/
 .ai/banca_zd4.md
 .ai/banca_moises.md
 .ai/guia_demo.md
+.ai/p4_offline_first.md
 # IntelliJ related
 *.iml
 *.ipr
