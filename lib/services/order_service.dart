@@ -102,32 +102,38 @@ class OrderService {
   }
 
   Future<void> _saveOrderLocally(List<Product> products, String description, double totalValue) async {
-    try {
-      final orderItems = products.map((product) {
-        return OrderItem(
-          productId: product.id ?? 0,
-          productName: product.name,  // 🔥 NOME
-          itemPrice: product.price ?? 0.0,  // 🔥 PREÇO UNITÁRIO
-          amount: product.amount ?? 0,
-          kg: product.kg ?? 0.0,
-          liters: product.liters ?? 0.0,
-        );
-      }).toList();
+  try {
+    final orderItems = products.map((product) {
+      // Determina qual campo de quantidade foi preenchido
+      int? amount = product.amount != null && product.amount != -1 ? product.amount : null;
+      double? kg = product.kg != null && product.kg != -1 ? product.kg : null;
+      double? liters = product.liters != null && product.liters != -1 ? product.liters : null;
 
-      final order = Order(
-        description: description.isNotEmpty ? description : 'Pedido ${DateTime.now().toIso8601String()}',
-        status: true,
-        totalValue: totalValue,
-        orderDate: DateTime.now().toIso8601String(),
-        items: orderItems,
+      // Se todos forem null, usa 0 como fallback (mas não deve acontecer)
+      return OrderItem(
+        productId: product.id ?? 0,
+        productName: product.name,
+        itemPrice: product.price ?? 0.0,
+        amount: amount ?? 0,
+        kg: kg ?? 0.0,
+        liters: liters ?? 0.0,
       );
+    }).toList();
 
-      await _orderDao.saveOrder(order);
-      debugPrint('✅ Pedido salvo localmente com ${order.items.length} itens');
-    } catch (e) {
-      debugPrint('❌ Erro ao salvar pedido localmente: $e');
-    }
+    final order = Order(
+      description: description.isNotEmpty ? description : 'Pedido ${DateTime.now().toIso8601String()}',
+      status: true,
+      totalValue: totalValue,
+      orderDate: DateTime.now().toIso8601String(),
+      items: orderItems,
+    );
+
+    await _orderDao.saveOrder(order);
+    debugPrint('✅ Pedido salvo localmente com ${order.items.length} itens');
+  } catch (e) {
+    debugPrint('❌ Erro ao salvar pedido localmente: $e');
   }
+}
 
   // ============================================================
   // ATUALIZA O ESTOQUE LOCAL

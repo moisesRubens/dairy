@@ -120,7 +120,14 @@ class _InventoryPageState extends State<InventoryPage> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 10),
-                        if (_isAdmin) _buildHeaderCard(),
+                        // 🔥 Card preto agora escuta mudanças no notifier
+                        if (_isAdmin)
+                          ValueListenableBuilder<List<Product>>(
+                            valueListenable: productsNotifier,
+                            builder: (context, products, child) {
+                              return _buildHeaderCard(products.length);
+                            },
+                          ),
                         const SizedBox(height: 20),
                         ValueListenableBuilder<List<Product>>(
                           valueListenable: productsNotifier,
@@ -158,8 +165,10 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Widget _buildHeaderCard() {
-    final int productCount = productsNotifier.value.length;
+  // ============================================================
+  // HEADER CARD (ATUALIZADO AUTOMATICAMENTE)
+  // ============================================================
+  Widget _buildHeaderCard(int productCount) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.black,
@@ -216,6 +225,9 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
+  // ============================================================
+  // MÉTODOS AUXILIARES
+  // ============================================================
   String _formatQuantity(num? quantity) {
     if (quantity == null) return "0";
     if (quantity is int) return quantity.toString();
@@ -538,80 +550,80 @@ class _AddProductDialogState extends State<AddProductDialog> {
   }
 
   Future<void> _saveProduct() async {
-  // 1. Validações
-  final name = _nameController.text.trim();
-  if (name.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('O nome é obrigatório.')),
-    );
-    return;
-  }
-
-  final priceStr = _priceController.text.trim().replaceAll(',', '.');
-  final double? price = double.tryParse(priceStr);
-  if (price == null || price <= 0) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Preço inválido.')),
-    );
-    return;
-  }
-
-  final amountStr = _amountController.text.trim().replaceAll(',', '.');
-  final kgStr = _kgController.text.trim().replaceAll(',', '.');
-  final litersStr = _litersController.text.trim().replaceAll(',', '.');
-
-  if (amountStr.isEmpty && kgStr.isEmpty && litersStr.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Preencha pelo menos uma unidade (Amount, Kg ou Liters).')),
-    );
-    return;
-  }
-
-  final int amount = amountStr.isEmpty ? -1 : (double.tryParse(amountStr)?.toInt() ?? -1);
-  final double kg = kgStr.isEmpty ? -1 : (double.tryParse(kgStr) ?? -1);
-  final double liters = litersStr.isEmpty ? -1 : (double.tryParse(litersStr) ?? -1);
-
-  final newProduct = Product(
-    id: null,
-    name: name,
-    price: price,
-    amount: amount,
-    kg: kg,
-    liters: liters,
-  );
-
-  setState(() => _isLoading = true);
-
-  try {
-    final success = await _InventoryPageState.productService.createProduct(newProduct);
-    if (success) {
-      // Recarrega a lista da API para atualizar o notifier
-      final products = await _InventoryPageState.productService.getProducts();
-      _InventoryPageState.productsNotifier.value = products;
-
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Produto criado com sucesso!')),
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('❌ Erro ao criar produto.')),
-        );
-      }
-    }
-  } catch (e) {
-    if (mounted) {
+    // 1. Validações
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Erro: $e')),
+        const SnackBar(content: Text('O nome é obrigatório.')),
       );
+      return;
     }
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
+
+    final priceStr = _priceController.text.trim().replaceAll(',', '.');
+    final double? price = double.tryParse(priceStr);
+    if (price == null || price <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preço inválido.')),
+      );
+      return;
+    }
+
+    final amountStr = _amountController.text.trim().replaceAll(',', '.');
+    final kgStr = _kgController.text.trim().replaceAll(',', '.');
+    final litersStr = _litersController.text.trim().replaceAll(',', '.');
+
+    if (amountStr.isEmpty && kgStr.isEmpty && litersStr.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preencha pelo menos uma unidade (Amount, Kg ou Liters).')),
+      );
+      return;
+    }
+
+    final int amount = amountStr.isEmpty ? -1 : (double.tryParse(amountStr)?.toInt() ?? -1);
+    final double kg = kgStr.isEmpty ? -1 : (double.tryParse(kgStr) ?? -1);
+    final double liters = litersStr.isEmpty ? -1 : (double.tryParse(litersStr) ?? -1);
+
+    final newProduct = Product(
+      id: null,
+      name: name,
+      price: price,
+      amount: amount,
+      kg: kg,
+      liters: liters,
+    );
+
+    setState(() => _isLoading = true);
+
+    try {
+      final success = await _InventoryPageState.productService.createProduct(newProduct);
+      if (success) {
+        // Recarrega a lista da API para atualizar o notifier
+        final products = await _InventoryPageState.productService.getProducts();
+        _InventoryPageState.productsNotifier.value = products;
+
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✅ Produto criado com sucesso!')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('❌ Erro ao criar produto.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ Erro: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {

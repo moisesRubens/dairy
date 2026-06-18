@@ -39,9 +39,7 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            
             const SizedBox(height: 20),
-
             ValueListenableBuilder<List<Map<String, dynamic>>>(
               valueListenable: OutboundService.allSalePointsNotifier,
               builder: (context, allPoints, child) {
@@ -114,7 +112,6 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
     required double overallPercentage,
   }) {
     final isExpanded = _expandedMap[index] ?? false;
-    final Color percentageColor = _getPercentageColor(overallPercentage);
 
     return Column(
       children: [
@@ -178,7 +175,7 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildProgressCircle(overallPercentage, percentageColor),
+                      _buildProgressCircle(overallPercentage),
                       const SizedBox(height: 6),
                       Text(
                         'Vendas',
@@ -196,7 +193,6 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
           ),
         ),
         const SizedBox(height: 12),
-
         AnimatedCrossFade(
           duration: const Duration(milliseconds: 400),
           firstChild: const SizedBox.shrink(),
@@ -211,16 +207,16 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
   }
 
   // ============================================================
-  // 🔥 WIDGET: PROGRESSO CIRCULAR
+  // 🔥 PROGRESSO CIRCULAR - SEMPRE VERDE (greenAccent)
   // ============================================================
-  Widget _buildProgressCircle(double percentage, Color color) {
+  Widget _buildProgressCircle(double percentage) {
     return SizedBox(
       width: 55,
       height: 55,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // 🔥 FUNDO DO CÍRCULO
+          // Fundo do círculo
           SizedBox(
             width: 55,
             height: 55,
@@ -231,22 +227,22 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
               strokeWidth: 4,
             ),
           ),
-          // 🔥 PROGRESSO
+          // Progresso
           SizedBox(
             width: 55,
             height: 55,
             child: CircularProgressIndicator(
               value: percentage / 100,
               backgroundColor: Colors.transparent,
-              valueColor: AlwaysStoppedAnimation<Color>(color),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.greenAccent),
               strokeWidth: 4,
             ),
           ),
-          // 🔥 TEXTO DA PORCENTAGEM
+          // Texto da porcentagem
           Text(
             '${percentage.toStringAsFixed(0)}%',
-            style: TextStyle(
-              color: color,
+            style: const TextStyle(
+              color: Colors.greenAccent,
               fontSize: 13,
               fontWeight: FontWeight.bold,
             ),
@@ -256,6 +252,9 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
     );
   }
 
+  // ============================================================
+  // 🔥 TABELA DE PRODUTOS
+  // ============================================================
   Widget _buildProductTable(List<Outbound> outbounds) {
     return Container(
       decoration: BoxDecoration(
@@ -325,7 +324,7 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
   }
 
   // ============================================================
-  // 🔥 WIDGETS AUXILIARES
+  // 🔥 AUXILIARES
   // ============================================================
   String _formatQuantity(double value, String unidade) {
     final isInteger = value.truncateToDouble() == value;
@@ -346,6 +345,9 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
     }
   }
 
+  // ============================================================
+  // 🔥 WIDGET DE PORCENTAGEM - SEMPRE greenAccent
+  // ============================================================
   Widget _buildPercentageWidget(Outbound outbound) {
     final taken = outbound.takenQuantity;
     final sold = outbound.soldQuantity;
@@ -355,32 +357,20 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
       percentage = (sold / taken) * 100;
     }
 
-    final Color color = _getPercentageColor(percentage);
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: Colors.greenAccent.withOpacity(0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         '${percentage.toStringAsFixed(1)}%',
-        style: TextStyle(
-          color: color,
+        style: const TextStyle(
+          color: Colors.greenAccent,
           fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
       ),
     );
-  }
-
-  Color _getPercentageColor(double percentage) {
-    if (percentage >= 80) {
-      return const Color(0xFF2E7D32); // Verde
-    } else if (percentage >= 50) {
-      return const Color(0xFFFF6B00); // Laranja
-    } else {
-      return  Colors.greenAccent;
-    }
   }
 }

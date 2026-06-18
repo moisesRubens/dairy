@@ -34,9 +34,13 @@ class OrderItem {
   );
 
   String getQuantityString() {
-    if (amount > 0) return '$amount un';
-    if (kg > 0) return '${kg.toStringAsFixed(2)} kg';
-    if (liters > 0) return '${liters.toStringAsFixed(2)} L';
+    if (amount > 0) {
+      return '$amount un';
+    } else if (kg > 0) {
+      return '${kg.toStringAsFixed(1)} kg';
+    } else if (liters > 0) {
+      return '${liters.toStringAsFixed(1)} L';
+    }
     return '0';
   }
 

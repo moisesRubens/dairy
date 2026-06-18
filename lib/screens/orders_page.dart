@@ -151,9 +151,7 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              
               const SizedBox(height: 20),
-
               _buildFilterSection(),
               const SizedBox(height: 24),
 
@@ -215,114 +213,123 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // 🔥 WIDGETS
+  // 🔥 FILTER SECTION - CARD PRETO
   // ============================================================
   Widget _buildFilterSection() {
-    return Column(
-      children: [
-        TextField(
-          controller: _searchController,
-          onChanged: (_) => setState(() => _currentPage = 0),
-          decoration: InputDecoration(
-            hintText: 'Pesquisar por data...',
-            hintStyle: TextStyle(color: Colors.grey[600]),
-            prefixIcon: const Icon(Icons.search_outlined, color: Colors.black, size: 20),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          // Campo de pesquisa
+          TextField(
+            controller: _searchController,
+            onChanged: (_) => setState(() => _currentPage = 0),
+            decoration: InputDecoration(
+              hintText: 'Pesquisar por data...',
+              hintStyle: TextStyle(color: Colors.grey[600]),
+              prefixIcon: const Icon(Icons.search_outlined, color: Colors.black, size: 20),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Colors.black, width: 2),
+              ),
+              isDense: true,
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.black, width: 2),
-            ),
-            isDense: true,
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                onTap: _pickDate,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: const Color(0xFFE0E0E0)),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.calendar_today_outlined, size: 16, color: Colors.black54),
-                      const SizedBox(width: 8),
-                      Text(
-                        _selectedDate == null 
-                          ? 'Filtrar por Data' 
-                          : '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}',
-                        style: const TextStyle(fontSize: 13, color: Colors.black87),
-                      ),
-                      if (_selectedDate != null) ...[
-                        const Spacer(),
-                        GestureDetector(
-                          onTap: () => setState(() {
-                            _selectedDate = null;
-                            _currentPage = 0;
-                          }),
-                          child: const Icon(Icons.close, size: 16, color: Color(0xFF9E9E9E)),
+          const SizedBox(height: 12),
+          // Linha com seletor de data e dropdown
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: _pickDate,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: const Color(0xFFE0E0E0)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today_outlined, size: 16, color: Colors.black54),
+                        const SizedBox(width: 8),
+                        Text(
+                          _selectedDate == null 
+                            ? 'Filtrar por Data' 
+                            : '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}',
+                          style: const TextStyle(fontSize: 13, color: Colors.black87),
                         ),
+                        if (_selectedDate != null) ...[
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: () => setState(() {
+                              _selectedDate = null;
+                              _currentPage = 0;
+                            }),
+                            child: const Icon(Icons.close, size: 16, color: Color(0xFF9E9E9E)),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: _selectedStatus,
-                isDense: true,
-                decoration: InputDecoration(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedStatus,
+                  isDense: true,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.black, width: 2),
+                    ),
+                    hintText: 'Status',
+                    hintStyle: TextStyle(color: Colors.grey[600]),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Colors.black, width: 2),
-                  ),
-                  hintText: 'Status',
-                  hintStyle: TextStyle(color: Colors.grey[600]),
-                ),
-                dropdownColor: Colors.white,
-                style: const TextStyle(color: Colors.black, fontSize: 13),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('Todos', style: TextStyle(fontSize: 13))),
-                  ..._statusOptions.map((status) {
-                    return DropdownMenuItem(value: status, child: Text(status, style: const TextStyle(fontSize: 13)));
+                  dropdownColor: Colors.white,
+                  style: const TextStyle(color: Colors.black, fontSize: 13),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('Todos', style: TextStyle(fontSize: 13))),
+                    ..._statusOptions.map((status) {
+                      return DropdownMenuItem(value: status, child: Text(status, style: const TextStyle(fontSize: 13)));
+                    }),
+                  ],
+                  onChanged: (val) => setState(() {
+                    _selectedStatus = val;
+                    _currentPage = 0;
                   }),
-                ],
-                onChanged: (val) => setState(() {
-                  _selectedStatus = val;
-                  _currentPage = 0;
-                }),
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -530,7 +537,6 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const SizedBox(height: 8),
-                  
                   const Text('📦 ITENS:', 
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
@@ -539,7 +545,6 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
                     )
                   ),
                   const SizedBox(height: 8),
-                  
                   ...realOrder.items.map((item) {
                     String quantity = item.getQuantityString();
                     String subtotal = 'R\$ ${item.subtotal.toStringAsFixed(2).replaceAll('.', ',')}';
@@ -591,14 +596,14 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
                       ),
                     );
                   }).toList(),
-                  
                   const SizedBox(height: 8),
                 ],
               ),
             ),
           ),
           actions: [
-            Expanded(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
