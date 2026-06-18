@@ -338,7 +338,7 @@ class _HomePageState extends State<HomePage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Total de Itens:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
-                        Text(cart.length.toString()),
+                        Text(cart.length.toString(), style: TextStyle(color: Colors.white),),
                       ],
                     ),
                     const SizedBox(height: 8),
