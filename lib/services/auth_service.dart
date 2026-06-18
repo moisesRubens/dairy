@@ -103,4 +103,61 @@ class AuthService {
 
     debugPrint('🔑 Sessão finalizada localmente');
   }
+
+  // Retorna o SalePoint atual (baseado no ID salvo)
+Future<SalePoint?> getCurrentSalePoint() async {
+  final prefs = await SharedPreferences.getInstance();
+  final id = prefs.getInt(salePointKey);
+  if (id == null) return null;
+  // Busca na API (ou no cache)
+  final url = Uri.parse('${ApiConfig.baseUrl}/auth/$id');
+  final token = prefs.getString(tokenKey);
+  try {
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return SalePoint.fromJson(data);
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Atualiza o perfil via PATCH /auth/
+Future<bool> updateProfile({String? name, String? email, String? password, int? level}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final id = prefs.getInt(salePointKey);
+  if (id == null) return false;
+  final token = prefs.getString(tokenKey);
+  
+  // Constrói a URL com os parâmetros query
+  final queryParameters = <String, String>{};
+  if (name != null && name.isNotEmpty) queryParameters['name'] = name;
+  if (email != null && email.isNotEmpty) queryParameters['email'] = email;
+  if (password != null && password.isNotEmpty) queryParameters['password'] = password;
+  if (level != null) queryParameters['level'] = level.toString();
+  
+  final uri = Uri.parse('${ApiConfig.baseUrl}/auth/')
+      .replace(queryParameters: queryParameters);
+  // O id também vai como query? Pelo Swagger, id é query, então adicionamos:
+  final fullUri = uri.replace(queryParameters: {...queryParameters, 'id': id.toString()});
+  
+  try {
+    final response = await http.patch(
+      fullUri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    );
+    return response.statusCode == 200 || response.statusCode == 204;
+  } catch (_) {
+    return false;
+  }
+}
 }

@@ -3,7 +3,7 @@ import '../domain/product.dart';
 import '../services/product_service.dart';
 import '../services/outbound_service.dart';
 import '../database/product_dao.dart';
-import '../services/auth_service.dart'; // Importe o AuthService para pegar o salePointId
+import '../services/auth_service.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
@@ -28,10 +28,10 @@ class _InventoryPageState extends State<InventoryPage> {
   
   final OutboundService _outboundService = OutboundService();
   final ProductDao _productDao = ProductDao();
-  final AuthService _authService = AuthService(); // Para pegar o salePointId
+  final AuthService _authService = AuthService();
   
   bool _isLoading = true;
-  bool _isAdmin = false; // 🔥 NOVO: Controla se o usuário é admin
+  bool _isAdmin = false;
 
   int? _expandedProductId;
   final Set<int> _selectedProductIds = {};
@@ -42,32 +42,21 @@ class _InventoryPageState extends State<InventoryPage> {
   void initState() {
     super.initState();
     _loadProducts();
-    _checkAdminStatus(); // 🔥 NOVO: Verifica se é admin ao iniciar
+    _checkAdminStatus();
   }
 
-  // 🔥 NOVO MÉTODO: Verifica se o usuário é admin
   Future<void> _checkAdminStatus() async {
     try {
-      // Pega o ID do sale_point atual (assumindo que está no AuthService)
       final int? salePointId = await _authService.getCurrentSalePointId();
-      
       if (salePointId != null) {
         final bool isAdmin = await productService.isAdmin(salePointId);
-        setState(() {
-          _isAdmin = isAdmin;
-        });
+        setState(() => _isAdmin = isAdmin);
         print('🔑 Status admin: $_isAdmin');
       } else {
-        print('⚠️ SalePoint ID não encontrado');
-        setState(() {
-          _isAdmin = false;
-        });
+        setState(() => _isAdmin = false);
       }
     } catch (e) {
-      print('❌ Erro ao verificar status admin: $e');
-      setState(() {
-        _isAdmin = false;
-      });
+      setState(() => _isAdmin = false);
     }
   }
 
@@ -76,21 +65,15 @@ class _InventoryPageState extends State<InventoryPage> {
     try {
       final data = await productService.getProducts();
       if (!mounted) return;
-      
       productsNotifier.value = data;
-      
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     } catch (e) {
       try {
         final localProducts = await _productDao.getAllProducts();
         if (!mounted) return;
         productsNotifier.value = localProducts;
-        setState(() {
-          _isLoading = false;
-        });
-        print('💾 ${localProducts.length} produtos carregados do banco (retiradas)');
+        setState(() => _isLoading = false);
+        print('💾 ${localProducts.length} produtos carregados do banco');
       } catch (e2) {
         if (!mounted) return;
         setState(() => _isLoading = false);
@@ -109,6 +92,17 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   // ============================================================
+  // DIÁLOGO PARA ADICIONAR PRODUTO
+  // ============================================================
+  void _showAddProductDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AddProductDialog(),
+    );
+  }
+
+  // ============================================================
   // BUILD
   // ============================================================
   @override
@@ -116,63 +110,56 @@ class _InventoryPageState extends State<InventoryPage> {
     return Column(
       children: [
         Expanded(
-          child: _isLoading 
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: _loadProducts,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 10),
-                      
-                      // 🔥 CARD PRETO COM BOTÃO LARANJA - AGORA CONDICIONAL
-                      // Só mostra se o usuário for admin
-                      if (_isAdmin) _buildHeaderCard(),
-                      
-                      const SizedBox(height: 20),
-                      
-                      ValueListenableBuilder<List<Product>>(
-                        valueListenable: productsNotifier,
-                        builder: (context, products, child) {
-                          if (products.isEmpty) {
-                            return const Center(child: Text("Nenhum produto encontrado."));
-                          }
-                          return GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: 0.75,
-                            ),
-                            itemCount: products.length,
-                            itemBuilder: (context, index) {
-                              final product = products[index];
-                              return _buildProductCard(product);
-                            },
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                    ],
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                  onRefresh: _loadProducts,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 10),
+                        if (_isAdmin) _buildHeaderCard(),
+                        const SizedBox(height: 20),
+                        ValueListenableBuilder<List<Product>>(
+                          valueListenable: productsNotifier,
+                          builder: (context, products, child) {
+                            if (products.isEmpty) {
+                              return const Center(
+                                  child: Text("Nenhum produto encontrado."));
+                            }
+                            return GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 16,
+                                mainAxisSpacing: 16,
+                                childAspectRatio: 0.75,
+                              ),
+                              itemCount: products.length,
+                              itemBuilder: (context, index) {
+                                final product = products[index];
+                                return _buildProductCard(product);
+                              },
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
                   ),
                 ),
-              ),
         ),
         if (_selectedProductIds.isNotEmpty) _buildBottomQuantitySelector(),
       ],
     );
   }
 
-  // ============================================================
-  // 🔥 HEADER CARD PRETO COM BOTÃO LARANJA
-  // ============================================================
   Widget _buildHeaderCard() {
     final int productCount = productsNotifier.value.length;
-    
     return Container(
       decoration: BoxDecoration(
         color: Colors.black,
@@ -204,9 +191,8 @@ class _InventoryPageState extends State<InventoryPage> {
               ),
             ],
           ),
-          // 🔥 BOTÃO NOVO PRODUTO - LARANJA
           ElevatedButton.icon(
-            onPressed: _handleNewProduct,
+            onPressed: _showAddProductDialog,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
@@ -230,28 +216,19 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  // ============================================================
-  // MÉTODO AUXILIAR PARA FORMATAR QUANTIDADE
-  // ============================================================
   String _formatQuantity(num? quantity) {
     if (quantity == null) return "0";
     if (quantity is int) return quantity.toString();
-    
     String formatted = quantity.toStringAsFixed(2).replaceAll('.', ',');
-    
     if (formatted.contains(',')) {
       formatted = formatted.replaceAll(RegExp(r'0+$'), '');
       if (formatted.endsWith(',')) {
         formatted = formatted.substring(0, formatted.length - 1);
       }
     }
-    
     return formatted;
   }
 
-  // ============================================================
-  // BUILD PRODUCT CARD
-  // ============================================================
   Widget _buildProductCard(Product product) {
     final bool isSelected = _selectedProductIds.contains(product.id);
     final bool isExpanded = _expandedProductId == product.id;
@@ -280,8 +257,8 @@ class _InventoryPageState extends State<InventoryPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isExpanded ? Colors.black : Colors.grey[300]!, 
-            width: isExpanded ? 2 : 1
+            color: isExpanded ? Colors.black : Colors.grey[300]!,
+            width: isExpanded ? 2 : 1,
           ),
         ),
         child: Column(
@@ -289,9 +266,9 @@ class _InventoryPageState extends State<InventoryPage> {
           children: [
             Expanded(
               child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                decoration: const BoxDecoration(
+                  color: Color.fromRGBO(245, 245, 245, 1),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
                 ),
                 child: const Center(
                   child: Icon(Icons.inventory_2_outlined, size: 40, color: Colors.grey),
@@ -305,7 +282,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 children: [
                   const SizedBox(height: 4),
                   Text(
-                    product.name, 
+                    product.name,
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -355,7 +332,7 @@ class _InventoryPageState extends State<InventoryPage> {
                     const SizedBox(height: 8),
                     Text(
                       "Estoque: ${_formatQuantity(quantity)} $unit",
-                      style: const TextStyle(fontSize: 12)
+                      style: const TextStyle(fontSize: 12),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -373,8 +350,8 @@ class _InventoryPageState extends State<InventoryPage> {
                           padding: const EdgeInsets.all(4),
                         ),
                       ],
-                    )
-                  ]
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -384,12 +361,8 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  // ============================================================
-  // BOTTOM QUANTITY SELECTOR
-  // ============================================================
   Widget _buildBottomQuantitySelector() {
     final int count = _selectedProductIds.length;
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -427,7 +400,8 @@ class _InventoryPageState extends State<InventoryPage> {
                 isDense: true,
                 hintText: 'Qtd',
                 hintStyle: TextStyle(color: Colors.grey[600]),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(4), borderSide: BorderSide.none),
               ),
             ),
           ),
@@ -444,7 +418,6 @@ class _InventoryPageState extends State<InventoryPage> {
       ),
     );
   }
-
 
   Future<void> _handleOutboundCreation() async {
     final String quantityText = _quantityController.text.replaceAll(',', '.');
@@ -471,13 +444,12 @@ class _InventoryPageState extends State<InventoryPage> {
     final bool success = await _outboundService.createOutbound(outboundsMap);
 
     if (success) {
-      _showSnackBar('Saída de ${outboundsMap.length} item(s) registrado(s) com sucesso!', const Color(0xFF2E7D32));
-      
+      _showSnackBar('Saída de ${outboundsMap.length} item(s) registrado(s) com sucesso!',
+          const Color(0xFF2E7D32));
       setState(() {
         _selectedProductIds.clear();
         _isLoading = false;
       });
-      
       _quantityController.clear();
       _quantityFocusNode.unfocus();
       await _loadProducts();
@@ -488,17 +460,13 @@ class _InventoryPageState extends State<InventoryPage> {
     }
   }
 
-  // ============================================================
-  // MÉTODOS AUXILIARES
-  // ============================================================
   void _handleNewProduct() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Abrir formulário de novo produto')),
-    );
+    _showAddProductDialog();
   }
 
   void _handleEdit(Product product) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Editar: ${product.name}')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('Editar: ${product.name}')));
   }
 
   void _showDeleteDialog(Product product) {
@@ -513,21 +481,17 @@ class _InventoryPageState extends State<InventoryPage> {
         ),
         content: Text(
           'Deseja realmente remover ${product.name} do estoque?',
-          style: TextStyle(color: Color(0xFF333333)),
+          style: const TextStyle(color: Color(0xFF333333)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.black,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.black),
             child: const Text('CANCELAR', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFE74C3C),
-            ),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFE74C3C)),
             child: const Text('EXCLUIR', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
@@ -541,6 +505,189 @@ class _InventoryPageState extends State<InventoryPage> {
         content: Text(message),
         backgroundColor: backgroundColor,
       ),
+    );
+  }
+}
+
+// ============================================================
+// DIÁLOGO DE ADIÇÃO DE PRODUTO
+// ============================================================
+class AddProductDialog extends StatefulWidget {
+  const AddProductDialog({super.key});
+
+  @override
+  State<AddProductDialog> createState() => _AddProductDialogState();
+}
+
+class _AddProductDialogState extends State<AddProductDialog> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _priceController = TextEditingController();
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _kgController = TextEditingController();
+  final TextEditingController _litersController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _priceController.dispose();
+    _amountController.dispose();
+    _kgController.dispose();
+    _litersController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveProduct() async {
+  // 1. Validações
+  final name = _nameController.text.trim();
+  if (name.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('O nome é obrigatório.')),
+    );
+    return;
+  }
+
+  final priceStr = _priceController.text.trim().replaceAll(',', '.');
+  final double? price = double.tryParse(priceStr);
+  if (price == null || price <= 0) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Preço inválido.')),
+    );
+    return;
+  }
+
+  final amountStr = _amountController.text.trim().replaceAll(',', '.');
+  final kgStr = _kgController.text.trim().replaceAll(',', '.');
+  final litersStr = _litersController.text.trim().replaceAll(',', '.');
+
+  if (amountStr.isEmpty && kgStr.isEmpty && litersStr.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Preencha pelo menos uma unidade (Amount, Kg ou Liters).')),
+    );
+    return;
+  }
+
+  final int amount = amountStr.isEmpty ? -1 : (double.tryParse(amountStr)?.toInt() ?? -1);
+  final double kg = kgStr.isEmpty ? -1 : (double.tryParse(kgStr) ?? -1);
+  final double liters = litersStr.isEmpty ? -1 : (double.tryParse(litersStr) ?? -1);
+
+  final newProduct = Product(
+    id: null,
+    name: name,
+    price: price,
+    amount: amount,
+    kg: kg,
+    liters: liters,
+  );
+
+  setState(() => _isLoading = true);
+
+  try {
+    final success = await _InventoryPageState.productService.createProduct(newProduct);
+    if (success) {
+      // Recarrega a lista da API para atualizar o notifier
+      final products = await _InventoryPageState.productService.getProducts();
+      _InventoryPageState.productsNotifier.value = products;
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Produto criado com sucesso!')),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('❌ Erro ao criar produto.')),
+        );
+      }
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Erro: $e')),
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
+  }
+}
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Novo Produto'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nome *',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _priceController,
+              decoration: const InputDecoration(
+                labelText: 'Preço * (ex: 42.90)',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _amountController,
+              decoration: const InputDecoration(
+                labelText: 'Quantidade (un) - opcional',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _kgController,
+              decoration: const InputDecoration(
+                labelText: 'Quantidade (kg) - opcional',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _litersController,
+              decoration: const InputDecoration(
+                labelText: 'Quantidade (L) - opcional',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '* Campos obrigatórios',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _saveProduct,
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Salvar'),
+        ),
+      ],
     );
   }
 }

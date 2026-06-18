@@ -72,4 +72,63 @@ class ProductService {
     return false;
   }
 }
+
+  Future<bool> createProduct(Product product) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+  
+  if (token == null) {
+    print('❌ Token não encontrado');
+    return false;
+  }
+
+  final url = Uri.parse('${ApiConfig.baseUrl}/products/');
+  final List<Map<String, dynamic>> body = [
+    {
+      'name': product.name,
+      'price': product.price,
+      'amount': product.amount ?? -1,
+      'kg': product.kg ?? -1,
+      'liters': product.liters ?? -1,
+    }
+  ];
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(body),
+    );
+
+    print('📡 Status: ${response.statusCode}');
+    print('📡 Resposta: ${response.body}');
+
+    // 🔥 Sucesso é definido pelo status code, não pelo corpo
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      // Opcional: tenta decodificar apenas se houver corpo e se for útil
+      if (response.body.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is List && decoded.isNotEmpty) {
+            // Aqui você pode extrair o produto criado se quiser
+            final newProduct = Product.fromJson(decoded.first);
+            // Salvar localmente se desejar
+          }
+        } catch (_) {
+          // Ignora erro de parse, pois o status já indica sucesso
+        }
+      }
+      return true;
+    } else {
+      return false;
+    }
+  } catch (e) {
+    print('❌ Exceção ao criar produto: $e');
+    return false;
+  }
+}
 }

@@ -8,6 +8,7 @@ import 'screens/orders_page.dart';
 import 'services/auth_service.dart';
 import 'services/outbound_service.dart';
 import 'database/db.dart';
+import 'domain/sale_point.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,6 +79,50 @@ class _MainShellState extends State<MainShell> {
     const SalesPointsPage(),
   ];
 
+  // 🔥 Exibe o diálogo de perfil
+  void _showProfileDialog(BuildContext context) {
+    // Busca os dados atuais do usuário
+    Future<SalePoint?> futureUser = _authService.getCurrentSalePoint();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return FutureBuilder<SalePoint?>(
+          future: futureUser,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final user = snapshot.data;
+            return ProfileDialog(
+              initialName: user?.name ?? '',
+              initialEmail: user?.email ?? '',
+              onSave: (String name, String email, String password) async {
+                // Chama o serviço para atualizar
+                final success = await _authService.updateProfile(
+                  name: name.isNotEmpty ? name : null,
+                  email: email.isNotEmpty ? email : null,
+                  password: password.isNotEmpty ? password : null,
+                );
+                if (success && context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Perfil atualizado com sucesso!')),
+                  );
+                } else if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Erro ao atualizar perfil.')),
+                  );
+                }
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,7 +133,9 @@ class _MainShellState extends State<MainShell> {
         shape: Border(bottom: BorderSide(color: Colors.grey[800]!, width: 2)),
         title: const Text('Fazenda Boa Esperança', style: TextStyle(color: Colors.white)),
       ),
-      drawer: const AppDrawer(),
+      drawer: AppDrawer(
+        onProfileTap: () => _showProfileDialog(context),
+      ),
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
@@ -103,10 +150,10 @@ class _MainShellState extends State<MainShell> {
             case 1:
               OrdersPage.loadOrders();
               break;
-            case 2: 
+            case 2:
               InventoryPage.loadInventory();
               break;
-            case 3: 
+            case 3:
               SalesPointsPage.loadSalesPoints();
               break;
             default:
@@ -128,7 +175,9 @@ class _MainShellState extends State<MainShell> {
 }
 
 class AppDrawer extends StatelessWidget {
-  const AppDrawer({super.key});
+  final VoidCallback onProfileTap;
+
+  const AppDrawer({super.key, required this.onProfileTap});
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +195,10 @@ class AppDrawer extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.account_circle_outlined, color: Colors.black),
             title: const Text('PERFIL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-            onTap: () => Navigator.pop(context),
+            onTap: () {
+              Navigator.pop(context); // Fecha o drawer
+              onProfileTap();
+            },
           ),
           ListTile(
             leading: const Icon(Icons.logout_outlined, color: Color(0xFFE74C3C)),
@@ -161,6 +213,113 @@ class AppDrawer extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ============================================================
+// DIALOG DE PERFIL
+// ============================================================
+class ProfileDialog extends StatefulWidget {
+  final String initialName;
+  final String initialEmail;
+  final Future<void> Function(String name, String email, String password) onSave;
+
+  const ProfileDialog({
+    super.key,
+    required this.initialName,
+    required this.initialEmail,
+    required this.onSave,
+  });
+
+  @override
+  State<ProfileDialog> createState() => _ProfileDialogState();
+}
+
+class _ProfileDialogState extends State<ProfileDialog> {
+  late TextEditingController _nameController;
+  late TextEditingController _emailController;
+  late TextEditingController _passwordController;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+    _emailController = TextEditingController(text: widget.initialEmail);
+    _passwordController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Editar Perfil'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nome',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _emailController,
+              decoration: const InputDecoration(
+                labelText: 'E-mail',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _passwordController,
+              decoration: const InputDecoration(
+                labelText: 'Nova Senha (opcional)',
+                border: OutlineInputBorder(),
+              ),
+              obscureText: true,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _isLoading
+              ? null
+              : () async {
+                  setState(() => _isLoading = true);
+                  await widget.onSave(
+                    _nameController.text.trim(),
+                    _emailController.text.trim(),
+                    _passwordController.text.trim(),
+                  );
+                  if (mounted) setState(() => _isLoading = false);
+                },
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Salvar'),
+        ),
+      ],
     );
   }
 }
