@@ -5,7 +5,7 @@ class Order {
   final bool status;
   final double totalValue;
   final String orderDate;
-  final List<OrderItem> items;
+  List<OrderItem> items;
 
   Order({
     required this.description,

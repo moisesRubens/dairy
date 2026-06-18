@@ -34,18 +34,14 @@ class AuthService {
           await prefs.setString(tokenKey, token);
           await prefs.setInt(salePointKey, userId);
 
-          // 2. Se a sua API NÃO retorna o campo 'user', você não pode chamá-lo.
-          // Se quiser navegar para a home apenas com o token, retorne um objeto fictício ou ajuste a API.
           if (data['user'] != null) {
             return SalePoint.fromJson(data['user']);
           } else {
-            // Retorna um SalePoint genérico apenas para validar o sucesso do login
             return SalePoint(id: 0, name: username); 
           }
         }
         return null;
       } else {
-        // Se o status não for 200 (ex: 401 ou 400), o login falhou
         return null; 
       }
     } catch (e) {
@@ -54,8 +50,11 @@ class AuthService {
     }
   }
 
-  /// Retorna true se há um token salvo e ainda não expirado.
-  /// Usado para o auto-login (pular a tela de login se a sessão é válida).
+  Future<int?> getCurrentSalePointId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(salePointKey);
+  }
+
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(tokenKey);
@@ -63,15 +62,102 @@ class AuthService {
     try {
       return !JwtDecoder.isExpired(token);
     } catch (_) {
-      // Token malformado: trata como deslogado.
       return false;
     }
   }
 
-  /// Encerra a sessão removendo o token e o id do ponto de venda do device.
+  /// 🔥 LOGOUT: chama a API e limpa os dados locais
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(tokenKey);
+
+    // 1. Tenta chamar o endpoint de logout (se houver token)
+    if (token != null && token.isNotEmpty) {
+      try {
+        final url = Uri.parse('${ApiConfig.baseUrl}/auth/logout');
+        final response = await http.post(
+          url,
+          headers: {
+            'accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+
+        // Espera-se status 204 (sem conteúdo) ou 200
+        if (response.statusCode == 204 || response.statusCode == 200) {
+          debugPrint('✅ Logout na API realizado com sucesso');
+        } else {
+          debugPrint('⚠️ Logout na API retornou status: ${response.statusCode}');
+        }
+      } catch (e) {
+        // Se a API falhar, continuamos com o logout local
+        debugPrint('❌ Erro ao chamar logout na API: $e');
+      }
+    }
+
+    // 2. Sempre limpa os dados locais, independente do sucesso da API
     await prefs.remove(tokenKey);
     await prefs.remove(salePointKey);
+    // Opcional: limpar outros dados (cache, etc.)
+    // await prefs.clear();
+
+    debugPrint('🔑 Sessão finalizada localmente');
   }
+
+  // Retorna o SalePoint atual (baseado no ID salvo)
+Future<SalePoint?> getCurrentSalePoint() async {
+  final prefs = await SharedPreferences.getInstance();
+  final id = prefs.getInt(salePointKey);
+  if (id == null) return null;
+  // Busca na API (ou no cache)
+  final url = Uri.parse('${ApiConfig.baseUrl}/auth/$id');
+  final token = prefs.getString(tokenKey);
+  try {
+    final response = await http.get(
+      url,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return SalePoint.fromJson(data);
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Atualiza o perfil via PATCH /auth/
+Future<bool> updateProfile({String? name, String? email, String? password, int? level}) async {
+  final prefs = await SharedPreferences.getInstance();
+  final id = prefs.getInt(salePointKey);
+  if (id == null) return false;
+  final token = prefs.getString(tokenKey);
+  
+  // Constrói a URL com os parâmetros query
+  final queryParameters = <String, String>{};
+  if (name != null && name.isNotEmpty) queryParameters['name'] = name;
+  if (email != null && email.isNotEmpty) queryParameters['email'] = email;
+  if (password != null && password.isNotEmpty) queryParameters['password'] = password;
+  if (level != null) queryParameters['level'] = level.toString();
+  
+  final uri = Uri.parse('${ApiConfig.baseUrl}/auth/')
+      .replace(queryParameters: queryParameters);
+  // O id também vai como query? Pelo Swagger, id é query, então adicionamos:
+  final fullUri = uri.replace(queryParameters: {...queryParameters, 'id': id.toString()});
+  
+  try {
+    final response = await http.patch(
+      fullUri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    );
+    return response.statusCode == 200 || response.statusCode == 204;
+  } catch (_) {
+    return false;
+  }
+}
 }
