@@ -33,7 +33,7 @@ class DB {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -121,12 +121,16 @@ class DB {
     return '❓ Desconhecida';
   }
 
-  // 🔥 CRIAÇÃO DO BANCO DE DADOS
+  // ============================================================
+  // 🔥 CRIAÇÃO DO BANCO DE DADOS (VERSÃO 3)
+  // ============================================================
   Future<void> _onCreate(Database db, int version) async {
     print('🔄 Criando banco de dados versão $version...');
     
     try {
-      // Tabela de produtos
+      // ============================================================
+      // TABELA: produtos
+      // ============================================================
       await db.execute('''
         CREATE TABLE produtos (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,14 +144,49 @@ class DB {
         )
       ''');
 
-      // Índices para melhor performance
+      // ============================================================
+      // TABELA: orders (pedidos)
+      // ============================================================
+      await db.execute('''
+        CREATE TABLE orders (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          orderId INTEGER UNIQUE,
+          sale_point_id INTEGER,
+          description TEXT,
+          status INTEGER,
+          total_value REAL,
+          order_date TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+
+      // ============================================================
+      // TABELA: order_items (itens do pedido)
+      // ============================================================
+      await db.execute('''
+        CREATE TABLE order_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          order_id INTEGER,
+          product_id INTEGER,
+          product_name TEXT,
+          item_price REAL,
+          amount INTEGER,
+          kg REAL,
+          liters REAL,
+          FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+        )
+      ''');
+
+      // ============================================================
+      // ÍNDICES
+      // ============================================================
       await db.execute('CREATE INDEX idx_produtos_name ON produtos(name)');
       await db.execute('CREATE INDEX idx_produtos_produtoId ON produtos(produtoId)');
+      await db.execute('CREATE INDEX idx_orders_orderId ON orders(orderId)');
+      await db.execute('CREATE INDEX idx_orders_order_date ON orders(order_date)');
+      await db.execute('CREATE INDEX idx_order_items_order_id ON order_items(order_id)');
 
-      print('✅ Tabela "produtos" criada com sucesso!');
-      
-      // Dados iniciais (opcional)
-      // await _insertInitialData(db);
+      print('✅ Todas as tabelas criadas com sucesso!');
       
     } catch (e) {
       print('❌ Erro ao criar tabelas: $e');
@@ -155,35 +194,90 @@ class DB {
     }
   }
 
+  // ============================================================
   // 🔥 UPGRADE DO BANCO DE DADOS
+  // ============================================================
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     print('🔄 Atualizando banco de dados de $oldVersion para $newVersion...');
     
     try {
-      // Exemplo de upgrade
+      // ============================================================
+      // UPGRADE DA VERSÃO 1 PARA 2
+      // ============================================================
       if (oldVersion < 2) {
-        // Adicionar nova coluna
-        // await db.execute('ALTER TABLE produtos ADD COLUMN category TEXT');
+        // Cria tabela orders
+        await db.execute('''
+          CREATE TABLE orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            orderId INTEGER UNIQUE,
+            sale_point_id INTEGER,
+            description TEXT,
+            status INTEGER,
+            total_value REAL,
+            order_date TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+          )
+        ''');
+
+        // Cria tabela order_items
+        await db.execute('''
+          CREATE TABLE order_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER,
+            product_id INTEGER,
+            product_name TEXT,
+            item_price REAL,
+            amount INTEGER,
+            kg REAL,
+            liters REAL,
+            FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+          )
+        ''');
+
+        // Cria índices
+        await db.execute('CREATE INDEX idx_orders_orderId ON orders(orderId)');
+        await db.execute('CREATE INDEX idx_orders_order_date ON orders(order_date)');
+        await db.execute('CREATE INDEX idx_order_items_order_id ON order_items(order_id)');
+        
+        print('✅ Tabelas de pedidos criadas no upgrade (v1 → v2)!');
       }
       
-      print('✅ Banco atualizado com sucesso!');
+      // ============================================================
+      // UPGRADE DA VERSÃO 2 PARA 3
+      // ============================================================
+      if (oldVersion < 3) {
+        try {
+          // Verifica se as colunas já existem
+          final columns = await db.rawQuery('PRAGMA table_info(order_items)');
+          final hasProductName = columns.any((col) => col['name'] == 'product_name');
+          final hasItemPrice = columns.any((col) => col['name'] == 'item_price');
+          
+          if (!hasProductName) {
+            await db.execute('ALTER TABLE order_items ADD COLUMN product_name TEXT');
+            print('✅ Coluna product_name adicionada à order_items');
+          }
+          
+          if (!hasItemPrice) {
+            await db.execute('ALTER TABLE order_items ADD COLUMN item_price REAL');
+            print('✅ Coluna item_price adicionada à order_items');
+          }
+          
+          print('✅ Upgrade v2 → v3 concluído!');
+        } catch (e) {
+          print('⚠️ Erro ao adicionar colunas (podem já existir): $e');
+        }
+      }
+      
+      print('✅ Banco atualizado para versão $newVersion com sucesso!');
     } catch (e) {
       print('❌ Erro ao atualizar banco: $e');
       rethrow;
     }
   }
 
-  // Método para popular com dados iniciais (opcional)
-  Future<void> _insertInitialData(Database db) async {
-    // Adiciona alguns produtos de exemplo
-    // await db.insert('produtos', {
-    //   'name': 'Produto Exemplo',
-    //   'price': 10.0,
-    //   'amount': 100,
-    // });
-  }
-
+  // ============================================================
   // 🔥 FECHA A CONEXÃO COM O BANCO
+  // ============================================================
   Future<void> close() async {
     if (_database != null) {
       await _database!.close();
@@ -193,7 +287,9 @@ class DB {
     }
   }
 
+  // ============================================================
   // 🔥 MÉTODO PARA DELETAR O BANCO (útil para reset)
+  // ============================================================
   Future<void> deleteDatabase() async {
     try {
       await close();

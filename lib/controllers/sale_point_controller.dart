@@ -3,19 +3,55 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/product.dart';
+import '../domain/outbound.dart';
 import '../config/api_config.dart';
 import '../database/product_dao.dart';
 import '../services/outbound_service.dart';
 import '../services/order_service.dart';
+import '../domain/order.dart';
 
 class SalePointController {
   final ProductDao _productDao = ProductDao();
   final OrderService _orderService = OrderService();
-
+  final OutboundService _outboundService = OutboundService();
+  
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
   final ValueNotifier<String?> errorMessage = ValueNotifier<String?>(null);
 
-  // 🔥 RETORNAR PRODUTOS AO ESTOQUE
+  Future<void> loadAllOutbounds() async {
+    try {
+      isLoading.value = true;
+      await _outboundService.loadAllOutbounds();
+    } catch (e) {
+      errorMessage.value = 'Erro ao carregar outbounds: $e';
+      debugPrint('❌ Erro em loadAllOutbounds: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // ============================================================
+  // 🔥 CARREGAR OUTBOUNDS POR DATA
+  // ============================================================
+  Future<void> loadOutboundsByDate(String date) async {
+    try {
+      isLoading.value = true;
+      await _outboundService.loadOutboundsByDate(date);
+    } catch (e) {
+      errorMessage.value = 'Erro ao carregar outbounds: $e';
+      debugPrint('❌ Erro em loadOutboundsByDate: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // ============================================================
+  // 🔥 MÉTODO ESTÁTICO PARA RECARREGAR (BOTTOM NAVIGATION)
+  // ============================================================
+  static Future<void> refreshOutbounds() async {
+    await OutboundService.refreshOutbounds();
+  }
+
   Future<bool> retornarProdutosAoEstoque() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
@@ -52,7 +88,9 @@ class SalePointController {
     } 
   }
 
+  // ============================================================
   // 🔥 FAZER VENDA
+  // ============================================================
   Future<bool> fazerVenda(
     List<Product> products, {
     String description = '',
@@ -67,7 +105,6 @@ class SalePointController {
         return false;
       }
 
-      // Verifica se todos os produtos têm ID
       final invalidProducts = products.where((p) => p.id == null);
       if (invalidProducts.isNotEmpty) {
         errorMessage.value = 'Alguns produtos não têm ID válido';
@@ -98,7 +135,57 @@ class SalePointController {
     }
   }
 
+  // ============================================================
+  // 🔥 BUSCAR FATURAMENTO DO DIA
+  // ============================================================
+  Future<double> getTodayRevenue() async {
+    try {
+      return await _orderService.getTodayRevenue();
+    } catch (e) {
+      debugPrint('❌ Erro ao buscar faturamento do dia: $e');
+      return 0.0;
+    }
+  }
+
+  // ============================================================
+  // 🔥 BUSCAR FATURAMENTO TOTAL
+  // ============================================================
+  Future<double> getTotalRevenue() async {
+    try {
+      return await _orderService.getTotalRevenue();
+    } catch (e) {
+      debugPrint('❌ Erro ao buscar faturamento total: $e');
+      return 0.0;
+    }
+  }
+
+  // ============================================================
+  // 🔥 BUSCAR TODOS OS PEDIDOS LOCAIS
+  // ============================================================
+  Future<List<Order>> getLocalOrders() async {
+    try {
+      return await _orderService.getLocalOrders();
+    } catch (e) {
+      debugPrint('❌ Erro ao buscar pedidos locais: $e');
+      return [];
+    }
+  }
+
+  // ============================================================
+  // 🔥 BUSCAR PEDIDOS POR DATA
+  // ============================================================
+  Future<List<Order>> getLocalOrdersByDate(String date) async {
+    try {
+      return await _orderService.getLocalOrdersByDate(date);
+    } catch (e) {
+      debugPrint('❌ Erro ao buscar pedidos por data: $e');
+      return [];
+    }
+  }
+
+  // ============================================================
   // 🔥 LIMPAR RECURSOS
+  // ============================================================
   void dispose() {
     isLoading.dispose();
     errorMessage.dispose();

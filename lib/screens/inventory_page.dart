@@ -3,14 +3,13 @@ import '../domain/product.dart';
 import '../services/product_service.dart';
 import '../services/outbound_service.dart';
 import '../database/product_dao.dart';
+import '../services/auth_service.dart'; // Importe o AuthService para pegar o salePointId
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
 
-  // ✅ MÉTODO ESTÁTICO para ser chamado pelo MainShell
   static Future<void> loadInventory() async {
     try {
-      // ✅ Agora acessa os membros públicos da classe _InventoryPageState
       final data = await _InventoryPageState.productService.getProducts();
       _InventoryPageState.productsNotifier.value = data;
       print('✅ Estoque recarregado: ${data.length} produtos');
@@ -24,14 +23,15 @@ class InventoryPage extends StatefulWidget {
 }
 
 class _InventoryPageState extends State<InventoryPage> {
-  // ✅ Tornando públicos (sem underscore)
   static final ProductService productService = ProductService();
   static final ValueNotifier<List<Product>> productsNotifier = ValueNotifier([]);
   
   final OutboundService _outboundService = OutboundService();
   final ProductDao _productDao = ProductDao();
+  final AuthService _authService = AuthService(); // Para pegar o salePointId
   
   bool _isLoading = true;
+  bool _isAdmin = false; // 🔥 NOVO: Controla se o usuário é admin
 
   int? _expandedProductId;
   final Set<int> _selectedProductIds = {};
@@ -42,25 +42,47 @@ class _InventoryPageState extends State<InventoryPage> {
   void initState() {
     super.initState();
     _loadProducts();
+    _checkAdminStatus(); // 🔥 NOVO: Verifica se é admin ao iniciar
   }
 
-  // ============================================================
-  // LOAD PRODUCTS - NÃO salva no banco
-  // ============================================================
+  // 🔥 NOVO MÉTODO: Verifica se o usuário é admin
+  Future<void> _checkAdminStatus() async {
+    try {
+      // Pega o ID do sale_point atual (assumindo que está no AuthService)
+      final int? salePointId = await _authService.getCurrentSalePointId();
+      
+      if (salePointId != null) {
+        final bool isAdmin = await productService.isAdmin(salePointId);
+        setState(() {
+          _isAdmin = isAdmin;
+        });
+        print('🔑 Status admin: $_isAdmin');
+      } else {
+        print('⚠️ SalePoint ID não encontrado');
+        setState(() {
+          _isAdmin = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Erro ao verificar status admin: $e');
+      setState(() {
+        _isAdmin = false;
+      });
+    }
+  }
+
   Future<void> _loadProducts() async {
     setState(() => _isLoading = true);
     try {
       final data = await productService.getProducts();
       if (!mounted) return;
       
-      // ✅ Atualiza o ValueNotifier público
       productsNotifier.value = data;
       
       setState(() {
         _isLoading = false;
       });
     } catch (e) {
-      // Fallback: banco local (apenas retiradas)
       try {
         final localProducts = await _productDao.getAllProducts();
         if (!mounted) return;
@@ -105,9 +127,12 @@ class _InventoryPageState extends State<InventoryPage> {
                     children: [
                       const SizedBox(height: 10),
                       
+                      // 🔥 CARD PRETO COM BOTÃO LARANJA - AGORA CONDICIONAL
+                      // Só mostra se o usuário for admin
+                      if (_isAdmin) _buildHeaderCard(),
+                      
                       const SizedBox(height: 20),
                       
-                      // ✅ ValueListenableBuilder com o notifier público
                       ValueListenableBuilder<List<Product>>(
                         valueListenable: productsNotifier,
                         builder: (context, products, child) {
@@ -139,6 +164,69 @@ class _InventoryPageState extends State<InventoryPage> {
         ),
         if (_selectedProductIds.isNotEmpty) _buildBottomQuantitySelector(),
       ],
+    );
+  }
+
+  // ============================================================
+  // 🔥 HEADER CARD PRETO COM BOTÃO LARANJA
+  // ============================================================
+  Widget _buildHeaderCard() {
+    final int productCount = productsNotifier.value.length;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'ESTOQUE',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$productCount produtos',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          // 🔥 BOTÃO NOVO PRODUTO - LARANJA
+          ElevatedButton.icon(
+            onPressed: _handleNewProduct,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            icon: const Icon(Icons.add, size: 20),
+            label: const Text(
+              'NOVO PRODUTO',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -357,9 +445,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  // ============================================================
-  // HANDLE OUTBOUND CREATION
-  // ============================================================
+
   Future<void> _handleOutboundCreation() async {
     final String quantityText = _quantityController.text.replaceAll(',', '.');
     final double? quantity = double.tryParse(quantityText);
@@ -374,7 +460,6 @@ class _InventoryPageState extends State<InventoryPage> {
       return;
     }
 
-    // ✅ Usa productsNotifier.value em vez de _productsNotifier
     final Map<Product, double> outboundsMap = {};
     for (int productId in _selectedProductIds) {
       final product = productsNotifier.value.firstWhere((p) => p.id == productId);
@@ -386,7 +471,7 @@ class _InventoryPageState extends State<InventoryPage> {
     final bool success = await _outboundService.createOutbound(outboundsMap);
 
     if (success) {
-      _showSnackBar('Saída de ${outboundsMap.length} item(s) registrada com sucesso!', const Color(0xFF2E7D32));
+      _showSnackBar('Saída de ${outboundsMap.length} item(s) registrado(s) com sucesso!', const Color(0xFF2E7D32));
       
       setState(() {
         _selectedProductIds.clear();
@@ -396,7 +481,7 @@ class _InventoryPageState extends State<InventoryPage> {
       _quantityController.clear();
       _quantityFocusNode.unfocus();
       await _loadProducts();
-      
+      await OutboundService.refreshProducts();
     } else {
       setState(() => _isLoading = false);
       _showSnackBar('Falha ao registrar saída. Verifique a conexão ou tente novamente', Colors.red);
@@ -406,6 +491,12 @@ class _InventoryPageState extends State<InventoryPage> {
   // ============================================================
   // MÉTODOS AUXILIARES
   // ============================================================
+  void _handleNewProduct() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Abrir formulário de novo produto')),
+    );
+  }
+
   void _handleEdit(Product product) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Editar: ${product.name}')));
   }
@@ -414,13 +505,30 @@ class _InventoryPageState extends State<InventoryPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Excluir Produto?'),
-        content: Text('Deseja realmente remover ${product.name} do estoque?'),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Excluir Produto?',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Deseja realmente remover ${product.name} do estoque?',
+          style: TextStyle(color: Color(0xFF333333)),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('EXCLUIR', style: TextStyle(color: Color(0xFFE74C3C))),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('CANCELAR', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFE74C3C),
+            ),
+            child: const Text('EXCLUIR', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

@@ -4,6 +4,7 @@ class Outbound {
   final int? id;
   final int salePointId;
   final int productId;
+  final String name;  // 🔥 ADICIONADO - nome do produto
   int? quantityToAdd;
   final double takenQuantity;
   final String unidade;
@@ -18,6 +19,7 @@ class Outbound {
     this.id,
     required this.salePointId,
     required this.productId,
+    required this.name,  // 🔥 ADICIONADO
     required this.takenQuantity,
     required this.unidade,
     this.observacao,
@@ -35,6 +37,7 @@ class Outbound {
     int? id,
     int? salePointId,
     int? productId,
+    String? name,  // 🔥 ADICIONADO
     double? takenQuantity,
     String? unidade,
     String? observacao,
@@ -47,6 +50,7 @@ class Outbound {
       id: id ?? this.id,
       salePointId: salePointId ?? this.salePointId,
       productId: productId ?? this.productId,
+      name: name ?? this.name,  // 🔥 ADICIONADO
       takenQuantity: takenQuantity ?? this.takenQuantity,
       unidade: unidade ?? this.unidade,
       observacao: observacao ?? this.observacao,
@@ -63,10 +67,10 @@ class Outbound {
       id: map['id']?.toInt(),
       salePointId: map['sale_point_id']?.toInt() ?? 0,
       productId: map['product_id']?.toInt() ?? 0,
+      name: map['name'] ?? '',  // 🔥 ADICIONADO - pega o nome do produto
       takenQuantity: map['taken_quantity']?.toDouble() ?? 0.0,
       unidade: map['unidade'] ?? '',
       observacao: map['observacao'],
-      // Converte a string de data da API para DateTime do Dart
       data: map['data'] != null ? DateTime.parse(map['data']) : DateTime.now(),
       soldQuantity: map['sold_quantity']?.toDouble() ?? 0.0,
       totalValue: map['total_value']?.toDouble() ?? 0.0,

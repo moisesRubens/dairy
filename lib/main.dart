@@ -99,9 +99,18 @@ class _MainShellState extends State<MainShell> {
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() => _currentIndex = index);
-          if (index == 2) {
-            // ✅ CHAMA O MÉTODO ESTÁTICO loadInventory()
-            InventoryPage.loadInventory();
+          switch (index) {
+            case 1:
+              OrdersPage.loadOrders();
+              break;
+            case 2: 
+              InventoryPage.loadInventory();
+              break;
+            case 3: 
+              SalesPointsPage.loadSalesPoints();
+              break;
+            default:
+              break;
           }
         },
         type: BottomNavigationBarType.fixed,
