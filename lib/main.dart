@@ -10,14 +10,12 @@ import 'services/outbound_service.dart';
 import 'database/db.dart';
 import 'domain/sale_point.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Inicializa o banco
   await DB.instance.database;
-  
-  // Carrega apenas as retiradas do banco
-  await OutboundService.loadProductsFromLocal();
   
   runApp(const MyApp());
 }
