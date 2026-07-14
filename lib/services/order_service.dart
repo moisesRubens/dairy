@@ -12,7 +12,7 @@ import '../domain/order_item.dart';
 class OrderService {
   
   final ProductDao _productDao = ProductDao();
-  final OrderDao _orderDao = OrderDao();  // 🔥 ADICIONADO
+  final OrderDao _orderDao = OrderDao();  
 
   Future<bool> createOrder({
     required List<Product> products,
@@ -112,7 +112,7 @@ class OrderService {
       // Se todos forem null, usa 0 como fallback (mas não deve acontecer)
       return OrderItem(
         productId: product.id ?? 0,
-        productName: product.name,
+        productName: product.name ?? "",
         itemPrice: product.price ?? 0.0,
         amount: amount ?? 0,
         kg: kg ?? 0.0,

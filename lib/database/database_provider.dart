@@ -1,12 +1,14 @@
 import 'package:dairy/domain/product.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'dart:async';
 
 class DatabaseProvider {
   static final DatabaseProvider _instance = DatabaseProvider.internal();
   factory DatabaseProvider() => _instance;
-  DatabaseProvider.internal();
   Database? _db;
+
+  DatabaseProvider.internal();
 
   Future<Database> get db async {
     if(_db != null){
@@ -36,7 +38,6 @@ class DatabaseProvider {
             ${Product.litersColumn} REAL,
             updated_at TEXT
           );
-          CREATE TABLE
         ''');
       },
     );

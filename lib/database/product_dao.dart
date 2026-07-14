@@ -1,15 +1,40 @@
 import 'package:sqflite/sqflite.dart';
 import '../domain/product.dart';
 import 'db.dart';
+import 'database_provider.dart';
 
 class ProductDao {
+  final DatabaseProvider _database = DatabaseProvider();
 
-  // ============================================================
-  // INSERIR PRODUTO
-  // ============================================================
+  Future<List<Product>> getAllProducts2 () async {
+    Database db = await _database.db;
+
+    List<Map<String, dynamic>> maps = await db.rawQuery("select * from products"); 
+    List<Product> productsList = [];
+
+    for (Map<String, dynamic> m in maps) {
+      productsList.add(Product.fromMap(m));
+    }
+    return productsList;
+  }
+
+  Future<int> addProduct(Product product) async {
+    Database db = await _database.db;
+
+    return await db.insert("products", product.toMap());
+  } 
+
+  Future<void> addProductsList(List<Product> products) async {
+    Database db = await _database.db;
+
+    for (Product p in products) {
+      await db.insert("products", p.toMap());
+    } 
+  }
+
   Future<int> insertProduct(Product product) async {
     final db = await DB.instance.database;
-    
+
     final Map<String, dynamic> map = {
       'produtoId': product.id,  // ← id do backend
       'name': product.name,
@@ -74,15 +99,27 @@ class ProductDao {
     )).toList();
   }
 
-  // ============================================================
-  // BUSCAR PRODUTO POR ID LOCAL (SQLite)
-  // ============================================================
+  Future<Product?> getProductById(int id) async {
+    Database db = await _database.db;
+    List<Map<String, dynamic>> product_map = await db.query(
+      "products",
+      where: "id = ?",
+      whereArgs: [id]
+    );
+
+    if(product_map.isEmpty) {
+      return null;
+    }
+    Product product = Product.fromMap(product_map.first);
+    return product;
+  }
+  
   Future<Product?> getProductByLocalId(int localId) async {
     final db = await DB.instance.database;
     
     final List<Map<String, dynamic>> results = await db.query(
       'produtos',
-      where: 'id = ?',  // ← id do SQLite
+      where: 'id = ?',  
       whereArgs: [localId],
     );
 

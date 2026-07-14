@@ -220,7 +220,7 @@ class OutboundService {
   static Future<void> loadProductsFromLocal() async {
     try {
       final dao = ProductDao();
-      final products = await dao.getAllProducts();
+      final products = await dao.getAllProducts2();
       saleProductsNotifier.value = products;
       
       print('📊 ${products.length} produtos carregados do banco (retiradas):');
@@ -269,7 +269,7 @@ class OutboundService {
       }
 
       return {
-        "product_id": product.id,
+        "product_id": product.productId,
         "quantidade": entry.value,
         "unidade": unit, 
       };
@@ -352,58 +352,50 @@ class OutboundService {
         final product = entry.key;
         final double quantity = entry.value;
 
-        print('   📦 ${product.name}: retirada de $quantity');
-
-        final existing = await dao.getProductByLocalId(product.id!);
-        
+        var existing = await dao.getProductById(product.productId!);
         if (existing != null) {
+
           if (product.amount != -1) {
             final newAmount = (existing.amount ?? 0) + quantity.toInt();
             await dao.updateQuantity(product.id!, newAmount);
-            print('   🔄 "${product.name}" atualizado: ${existing.amount} → $newAmount un');
           } else if (product.kg != -1) {
             final newKg = (existing.kg ?? 0.0) + quantity;
             await dao.updateKg(product.id!, newKg);
-            print('   🔄 "${product.name}" atualizado: ${existing.kg} → $newKg kg');
           } else if (product.liters != -1) {
             final newLiters = (existing.liters ?? 0.0) + quantity;
             await dao.updateLiters(product.id!, newLiters);
-            print('   🔄 "${product.name}" atualizado: ${existing.liters} → $newLiters L');
           }
         } else {
           if (product.amount != -1) {
             final productWithAmount = Product(
-              id: product.id,
+              productId: product.productId,
               name: product.name,
               price: product.price,
               amount: quantity.toInt(),
               kg: -1,
               liters: -1,
             );
-            await dao.insertProduct(productWithAmount);
-            print('   ✅ "${product.name}" inserido com amount=${quantity.toInt()} un');
+            await dao.addProduct(productWithAmount);
           } else if (product.kg != -1) {
             final productWithKg = Product(
-              id: product.id,
+              productId: product.productId,
               name: product.name,
               price: product.price,
               amount: -1,
               kg: quantity,
               liters: -1,
             );
-            await dao.insertProduct(productWithKg);
-            print('   ✅ "${product.name}" inserido com kg=$quantity');
+            await dao.addProduct(productWithKg);
           } else if (product.liters != -1) {
             final productWithLiters = Product(
-              id: product.id,
+              productId: product.productId,
               name: product.name,
               price: product.price,
               amount: -1,
               kg: -1,
               liters: quantity,
             );
-            await dao.insertProduct(productWithLiters);
-            print('   ✅ "${product.name}" inserido com liters=$quantity');
+            await dao.addProduct(productWithLiters);
           }
         }
       }
@@ -445,8 +437,9 @@ class OutboundService {
   
   static Future<void> refreshProducts() async {
     try {
+      print("DENTRO DE REFRESH PRODUCTS");
       final dao = ProductDao();
-      final products = await dao.getAllProducts();
+      final products = await dao.getAllProducts2();
       saleProductsNotifier.value = products;
       print('🔄 Produtos recarregados do banco: ${products.length} itens');
 

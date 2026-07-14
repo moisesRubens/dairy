@@ -242,8 +242,8 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   Widget _buildProductCard(Product product) {
-    final bool isSelected = _selectedProductIds.contains(product.id);
-    final bool isExpanded = _expandedProductId == product.id;
+    final bool isSelected = _selectedProductIds.contains(product.productId);
+    final bool isExpanded = _expandedProductId == product.productId;
     num? quantity;
     String unit = '';
 
@@ -261,7 +261,7 @@ class _InventoryPageState extends State<InventoryPage> {
     return GestureDetector(
       onTap: () {
         setState(() {
-          _expandedProductId = isExpanded ? null : product.id;
+          _expandedProductId = isExpanded ? null : product.productId;
         });
       },
       child: Container(
@@ -294,7 +294,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 children: [
                   const SizedBox(height: 4),
                   Text(
-                    product.name,
+                    product.name ?? "",
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -329,9 +329,9 @@ class _InventoryPageState extends State<InventoryPage> {
                             onChanged: (val) {
                               setState(() {
                                 if (val == true) {
-                                  _selectedProductIds.add(product.id!);
+                                  _selectedProductIds.add(product.productId!);
                                 } else {
-                                  _selectedProductIds.remove(product.id!);
+                                  _selectedProductIds.remove(product.productId!);
                                 }
                               });
                             },
@@ -447,7 +447,7 @@ class _InventoryPageState extends State<InventoryPage> {
 
     final Map<Product, double> outboundsMap = {};
     for (int productId in _selectedProductIds) {
-      final product = productsNotifier.value.firstWhere((p) => p.id == productId);
+      final product = productsNotifier.value.firstWhere((p) => p.productId == productId);
       outboundsMap[product] = quantity;
     }
 

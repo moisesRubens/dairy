@@ -451,7 +451,7 @@ class ProductRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          Expanded(flex: 2, child: Text(product.name, style: const TextStyle(fontWeight: FontWeight.w500))),
+          Expanded(flex: 2, child: Text(product.name ?? "", style: const TextStyle(fontWeight: FontWeight.w500))),
           Expanded(
             flex: 1,
             child: Text(
