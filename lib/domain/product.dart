@@ -27,7 +27,7 @@ class Product {
 
   @override
   String toString() {
-    return 'Product(id: $id, amount: $amount, kg: $kg, liters: $liters)';
+    return 'Product(id: $id, productId: $productId, amount: $amount, kg: $kg, liters: $liters)';
   }
 
   Product.fromMap(Map<String, dynamic> map) {

@@ -292,14 +292,17 @@ class OutboundService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        // 1. Atualiza o notifier (memória)
         final currentList = List<Product>.from(saleProductsNotifier.value);
 
         outboundsQuantity.forEach((product, quantity) {
-          final existingIndex = currentList.indexWhere((p) => p.id == product.id);
-          
-          if (existingIndex != -1) {
-            final p = currentList[existingIndex];
+          final int localProductId = (currentList.indexWhere((p) => p.productId == product.productId) != -1 ) ?(currentList.firstWhere((p) => p.productId == product.productId).id!) : -1;
+
+          print("ID LOCAL DO PRODUTO: ${localProductId}");
+
+          if (localProductId != -1) {
+            /*É AQUI QUE TÁ TENDO A EXCESSÃO (ID DIFERENTE DO DB E DA CURRENT LIST)*/
+            final p = currentList[localProductId];
+            print("ID DO PRODUTO NA CURRENT LIST: ${p.id}");
             if (p.amount != -1) {
               p.amount = (p.amount ?? 0) + quantity.toInt();
             } else if (p.kg != -1) {

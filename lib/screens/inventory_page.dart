@@ -449,6 +449,8 @@ class _InventoryPageState extends State<InventoryPage> {
     for (int productId in _selectedProductIds) {
       final product = productsNotifier.value.firstWhere((p) => p.productId == productId);
       outboundsMap[product] = quantity;
+      print("ITENS DO MAP DE RETIRADAS: ${product}");
+      print("QUANTIDADE DE RETIRADAS: ${quantity}");
     }
 
     setState(() => _isLoading = true);
