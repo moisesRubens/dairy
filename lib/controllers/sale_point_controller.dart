@@ -75,7 +75,7 @@ class SalePointController {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        await _productDao.deleteAll();
+        await _productDao.deleteAllProducts2();
         OutboundService.saleProductsNotifier.value = [];
         return true;
       } else {
@@ -87,10 +87,7 @@ class SalePointController {
       return false;
     } 
   }
-
-  // ============================================================
-  // 🔥 FAZER VENDA
-  // ============================================================
+  
   Future<bool> fazerVenda(
     List<Product> products, {
     String description = '',
@@ -105,13 +102,15 @@ class SalePointController {
         return false;
       }
 
-      final invalidProducts = products.where((p) => p.id == null);
+      final invalidProducts = products.where((p) { 
+        print("PRODUTO DA VENDA: ${p}");
+        return p.productId == null;
+      });
+
       if (invalidProducts.isNotEmpty) {
         errorMessage.value = 'Alguns produtos não têm ID válido';
         return false;
       }
-
-      debugPrint('🛒 Iniciando venda de ${products.length} produtos...');
 
       final success = await _orderService.createOrder(
         products: products,

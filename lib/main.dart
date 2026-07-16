@@ -71,7 +71,7 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = [
-    const HomePage(),
+    HomePage(key: HomePage.homeKey),
     const OrdersPage(),
     const InventoryPage(),
     const SalesPointsPage(),
@@ -145,6 +145,11 @@ class _MainShellState extends State<MainShell> {
         onTap: (index) {
           setState(() => _currentIndex = index);
           switch (index) {
+            case 0:
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                HomePage.homeKey.currentState?.scrollToTopNow();
+              });
+              break;
             case 1:
               OrdersPage.loadOrders();
               break;

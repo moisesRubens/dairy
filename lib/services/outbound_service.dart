@@ -8,6 +8,7 @@ import '../database/product_dao.dart';
 import '../domain/outbound.dart';
 
 class OutboundService {
+  final dao = ProductDao();
   static ValueNotifier<List<Product>> saleProductsNotifier = ValueNotifier<List<Product>>([]);
   static List<Product> get saleProducts => saleProductsNotifier.value;
 
@@ -240,10 +241,7 @@ class OutboundService {
       saleProductsNotifier.value = [];
     }
   }
-
-  // ============================================================
-  // 🔥 CRIAR OUTBOUND (RETIRADA)
-  // ============================================================
+  
   Future<bool> createOutbound(Map<Product, double> outboundsQuantity, {String? observacao}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
@@ -292,43 +290,41 @@ class OutboundService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        final currentList = List<Product>.from(saleProductsNotifier.value);
+        for (final entry in outboundsQuantity.entries) {
+          final product = entry.key;
+          final quantity = entry.value;
+          final Product? localProduct = await dao.getProduct2(
+            productId: product.productId,
+          );
 
-        outboundsQuantity.forEach((product, quantity) {
-          final int localProductId = (currentList.indexWhere((p) => p.productId == product.productId) != -1 ) ?(currentList.firstWhere((p) => p.productId == product.productId).id!) : -1;
-
-          print("ID LOCAL DO PRODUTO: ${localProductId}");
-
-          if (localProductId != -1) {
-            /*É AQUI QUE TÁ TENDO A EXCESSÃO (ID DIFERENTE DO DB E DA CURRENT LIST)*/
-            final p = currentList[localProductId];
-            print("ID DO PRODUTO NA CURRENT LIST: ${p.id}");
-            if (p.amount != -1) {
-              p.amount = (p.amount ?? 0) + quantity.toInt();
-            } else if (p.kg != -1) {
-              p.kg = (p.kg ?? 0.0) + quantity;
-            } else if (p.liters != -1) {
-              p.liters = (p.liters ?? 0.0) + quantity;
+          if (localProduct != null) {
+            if (localProduct.amount != null && localProduct.amount != -1) {
+              localProduct.amount = localProduct.amount! + quantity.toInt();
+            } else if (localProduct.kg != null && localProduct.kg != -1) {
+              localProduct.kg = localProduct.kg! + quantity;
+            } else if (localProduct.liters != null &&
+                localProduct.liters != -1) {
+              localProduct.liters = localProduct.liters! + quantity;
             }
+
+            await dao.updateQuantity2(localProduct);
           } else {
-            final newProduct = Product(
-              id: product.id,
+            await dao.addProduct(Product(
+              productId: product.productId,
               name: product.name,
               price: product.price,
-              amount: product.amount != -1 ? quantity.toInt() : -1,
-              kg: product.kg != -1 ? quantity : -1,
-              liters: product.liters != -1 ? quantity : -1,
-            );
-            currentList.add(newProduct);
+              amount: product.amount != null && product.amount != -1
+                  ? quantity.toInt()
+                  : -1,
+              kg: product.kg != null && product.kg != -1 ? quantity : -1,
+              liters: product.liters != null && product.liters != -1
+                  ? quantity
+                  : -1,
+            ));
           }
-        });
+        }
 
-        saleProductsNotifier.value = currentList;
-
-        // 2. SALVA NO BANCO LOCAL
-        await _saveOutboundToLocal(outboundsQuantity);
-
-        // 3. RECARREGA OS OUTBOUNDS
+        await refreshProducts();
         await loadAllOutbounds();
 
         return true;

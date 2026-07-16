@@ -29,10 +29,10 @@ class OrderService {
         return false;
       }
 
-      // 🔥 Usa product.id (que é o ID do backend)
+      // productId é o ID do produto no backend.
       final items = products.map((product) {
         final Map<String, dynamic> item = {
-          'product_id': product.id ?? 0,
+          'product_id': product.productId,
           'amount': 0,
           'kg': 0.0,
           'liters': 0.0,
@@ -111,7 +111,7 @@ class OrderService {
 
       // Se todos forem null, usa 0 como fallback (mas não deve acontecer)
       return OrderItem(
-        productId: product.id ?? 0,
+        productId: product.productId ?? 0,
         productName: product.name ?? "",
         itemPrice: product.price ?? 0.0,
         amount: amount ?? 0,
@@ -141,32 +141,42 @@ class OrderService {
   Future<void> _updateLocalStock(List<Product> soldProducts) async {
     try {
       for (var soldProduct in soldProducts) {
-        // 🔥 Busca pelo ID do backend (product.id)
-        final currentProduct = await _productDao.getProductByBackendId(soldProduct.id!);
+        final currentProduct = await _productDao.getProduct2(
+          productId: soldProduct.productId,
+        );
         
         if (currentProduct != null) {
           final updatedProduct = Product(
-            id: currentProduct.id,  // Mantém o ID do backend
+            id: currentProduct.id,
+            productId: currentProduct.productId,
             name: currentProduct.name,
             price: currentProduct.price,
             // Subtrai as quantidades
-            amount: currentProduct.amount != null && soldProduct.amount != null
+            amount: currentProduct.amount != null &&
+                    soldProduct.amount != null &&
+                    soldProduct.amount != -1
                 ? currentProduct.amount! - soldProduct.amount!
                 : currentProduct.amount,
-            kg: currentProduct.kg != null && soldProduct.kg != null
+            kg: currentProduct.kg != null &&
+                    soldProduct.kg != null &&
+                    soldProduct.kg != -1
                 ? currentProduct.kg! - soldProduct.kg!
                 : currentProduct.kg,
-            liters: currentProduct.liters != null && soldProduct.liters != null
+            liters: currentProduct.liters != null &&
+                    soldProduct.liters != null &&
+                    soldProduct.liters != -1
                 ? currentProduct.liters! - soldProduct.liters!
                 : currentProduct.liters,
           );
 
-          await _productDao.updateProduct(updatedProduct);
+          await _productDao.updateQuantity2(updatedProduct);
           
           debugPrint('📦 Estoque atualizado: ${currentProduct.name} '
               '(amount: ${updatedProduct.amount}, kg: ${updatedProduct.kg}, liters: ${updatedProduct.liters})');
         } else {
-          debugPrint('⚠️ Produto ID ${soldProduct.id} não encontrado no banco local');
+          debugPrint(
+            '⚠️ Produto ID ${soldProduct.productId} não encontrado no banco local',
+          );
         }
       }
       

@@ -20,9 +20,40 @@ class ProductDao {
 
   Future<int> addProduct(Product product) async {
     Database db = await _database.db;
-
     return await db.insert("products", product.toMap());
   } 
+
+  Future<void> deleteAllProducts2() async {
+    Database db = await _database.db;
+
+    await db.rawDelete("delete from products");
+  }
+
+  Future<Product?> getProduct2({int? productId, int? id}) async {
+    if (id == null && productId == null) {
+        throw ArgumentError('Informe ao menos id ou productId');
+    }
+    Database db = await _database.db;
+
+    List result = await db.query("products", where: id != null 
+      ?"id = ?"
+      :"product_id = ?",
+       whereArgs: id != null
+       ?[id] :[productId],
+       limit: 1);
+
+    if(result.isEmpty) {
+      return null;
+    } 
+    return Product.fromMap(result.first);
+  }
+
+  Future<int> updateQuantity2(Product product) async {
+    Database db = await _database.db;
+    
+    int updated = await db.update("products", product.toMap(), where: "id = ?", whereArgs: [product.id]);
+    return updated;
+  }
 
   Future<void> addProductsList(List<Product> products) async {
     Database db = await _database.db;

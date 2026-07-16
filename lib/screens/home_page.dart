@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../domain/product.dart';
 import '../services/outbound_service.dart';
 import '../controllers/sale_point_controller.dart';
@@ -6,22 +7,49 @@ import '../controllers/sale_point_controller.dart';
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
+  static final GlobalKey<HomePageState> homeKey = GlobalKey<HomePageState>();
+
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<HomePage> createState() => HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class HomePageState extends State<HomePage> {
   final SalePointController _salePointController = SalePointController();
+  final ScrollController _scrollController = ScrollController();
   double dailyRevenue = 1250.50;
   List<Product> products = [];
   bool _isLoading = true;
   bool _isReturning = false;
   List<Map<String, dynamic>> cart = [];
+  final Map<int, TextEditingController> _quantityControllers = {};
+
+  TextEditingController _quantityControllerFor(Product product) {
+    final key = product.productId ?? product.id ?? identityHashCode(product);
+    return _quantityControllers.putIfAbsent(
+      key,
+      TextEditingController.new,
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     _loadProducts();
+  }
+
+  void _scrollToTop() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.offset <= 0) return;
+    _scrollController.animateTo(
+      0.0,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void scrollToTopNow() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.jumpTo(0);
   }
 
   Future<void> _loadProducts() async {
@@ -45,6 +73,34 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _returnProductsToStock() async {
     if (_isReturning) return;
+
+    final shouldReturn = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Confirmar retorno'),
+          content: const Text(
+            'Deseja realmente retornar os produtos ao estoque?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Confirmar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldReturn != true) return;
 
     setState(() => _isReturning = true);
 
@@ -89,24 +145,86 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void addToCart(Product product, double quantity) {
-    if (quantity <= 0) return;
+  double _availableQuantity(Product product) {
+    if (product.amount != null && product.amount != -1) {
+      return product.amount!.toDouble();
+    }
+    if (product.kg != null && product.kg != -1) return product.kg!;
+    if (product.liters != null && product.liters != -1) {
+      return product.liters!;
+    }
+    return 0;
+  }
+
+  String _productUnit(Product product) {
+    if (product.amount != null && product.amount != -1) return 'un';
+    if (product.kg != null && product.kg != -1) return 'kg';
+    if (product.liters != null && product.liters != -1) return 'L';
+    return '';
+  }
+
+  bool addToCart(Product product, double quantity) {
+    if (quantity <= 0) return false;
+
+    final existingIndex = cart.indexWhere(
+      (item) => (item['product'] as Product).productId == product.productId,
+    );
+    final quantityInCart = existingIndex == -1
+        ? 0.0
+        : cart[existingIndex]['quantity'] as double;
+    final available = _availableQuantity(product);
+
+    if (quantity + quantityInCart > available) {
+      final unit = _productUnit(product);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Quantidade indisponível. Você possui '
+            '${available.toStringAsFixed(unit == 'un' ? 0 : 2).replaceAll('.', ',')} $unit.',
+          ),
+          backgroundColor: Colors.orange[800],
+        ),
+      );
+      return false;
+    }
 
     setState(() {
-      final existingIndex = cart.indexWhere((item) => item['name'] == product.name);
       if (existingIndex != -1) {
-        cart[existingIndex]['quantity'] += quantity;
+        cart[existingIndex]['quantity'] = quantityInCart + quantity;
       } else {
-        String unit = product.amount != -1 ? 'un' : (product.kg != -1 ? 'kg' : 'L');
         cart.add({
           'name': product.name,
           'price': product.price ?? 0.0,
-          'unit': unit,
+          'unit': _productUnit(product),
           'quantity': quantity,
           'product': product,
         });
       }
     });
+    return true;
+  }
+
+  void _addProductFromController(
+    Product product,
+    TextEditingController controller,
+  ) {
+    FocusScope.of(context).unfocus();
+    final normalized = controller.text.trim().replaceAll(',', '.');
+    final quantity = double.tryParse(normalized);
+
+    if (quantity == null || quantity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Digite uma quantidade válida. Ex.: 1,5 ou 1.5'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (addToCart(product, quantity)) {
+      controller.clear();
+    }
   }
 
   void removeFromCart(String productName) {
@@ -133,12 +251,18 @@ class _HomePageState extends State<HomePage> {
     final List<Product> productsToSell = cart.map((item) {
       final product = item['product'] as Product;
       return Product(
-        id: product.id,
+        productId: product.productId,
         name: product.name,
         price: product.price,
-        amount: product.amount != -1 ? (item['quantity'] as double).toInt() : null,
-        kg: product.kg != -1 ? item['quantity'] : null,
-        liters: product.liters != -1 ? item['quantity'] : null,
+        amount: product.amount != null && product.amount != -1
+            ? (item['quantity'] as double).toInt()
+            : null,
+        kg: product.kg != null && product.kg != -1
+            ? item['quantity'] as double
+            : null,
+        liters: product.liters != null && product.liters != -1
+            ? item['quantity'] as double
+            : null,
       );
     }).toList();
 
@@ -178,6 +302,7 @@ class _HomePageState extends State<HomePage> {
     return RefreshIndicator(
       onRefresh: _loadProducts,
       child: SingleChildScrollView(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -186,9 +311,9 @@ class _HomePageState extends State<HomePage> {
             children: [
               const SizedBox(height: 10),
               _buildRevenueCard(),
+              if (cart.isNotEmpty) _buildCartSection(),
               const SizedBox(height: 20),
               _buildProductTable(),
-              if (cart.isNotEmpty) _buildCartSection(),
             ],
           ),
         ),
@@ -229,7 +354,7 @@ class _HomePageState extends State<HomePage> {
     return ElevatedButton.icon(
       onPressed: _isReturning ? null : _returnProductsToStock,
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.orange,
+        backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -240,7 +365,7 @@ class _HomePageState extends State<HomePage> {
               height: 20,
               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
             )
-          : const Icon(Icons.arrow_back, size: 20),
+          : const Icon(Icons.assignment_return, size: 20),
       label: Text(_isReturning ? 'Retornando...' : 'Retornar'),
     );
   }
@@ -256,8 +381,45 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.grey[300]!),
           ),
-          child: Column(
-            children: [
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (_isLoading) {
+                return const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              if (produtosAtualizados.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: Text('Nenhum produto em estoque.')),
+                );
+              }
+
+              if (constraints.maxWidth < 700) {
+                return Column(
+                  children: produtosAtualizados.asMap().entries.map((entry) {
+                    final product = entry.value;
+                    final controller = _quantityControllerFor(product);
+                    return Column(
+                      children: [
+                        ProductCard(
+                          product: product,
+                          controller: controller,
+                          onAdd: () =>
+                              _addProductFromController(product, controller),
+                        ),
+                        if (entry.key != produtosAtualizados.length - 1)
+                          Divider(height: 1, color: Colors.grey[300]),
+                      ],
+                    );
+                  }).toList(),
+                );
+              }
+
+              return Column(
+                children: [
               // Cabeçalho
               Container(
                 color: Colors.grey[100],
@@ -267,39 +429,31 @@ class _HomePageState extends State<HomePage> {
                     Expanded(flex: 2, child: Text('Produto', style: TextStyle(fontWeight: FontWeight.bold))),
                     Expanded(flex: 1, child: Text('Preço', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.left)),
                     Expanded(flex: 1, child: Text('Estoque', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                    Expanded(flex: 1, child: Text('Qtd', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                    SizedBox(width: 50),
+                    Expanded(flex: 2, child: Text('Quantidade para venda', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
+                    SizedBox(width: 92),
                   ],
                 ),
               ),
-              // Conteúdo
-              if (_isLoading)
-                const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()))
-              else if (produtosAtualizados.isEmpty)
-                const Padding(padding: EdgeInsets.all(20), child: Center(child: Text("Nenhum produto em estoque.")))
-              else
-                ...produtosAtualizados.asMap().entries.map((entry) {
+              ...produtosAtualizados.asMap().entries.map((entry) {
                   final index = entry.key;
                   final product = entry.value;
-                  final controller = TextEditingController();
+                  final controller = _quantityControllerFor(product);
                   return Column(
                     children: [
                       ProductRow(
                         product: product,
                         controller: controller,
-                        onAdd: () {
-                          FocusScope.of(context).unfocus();
-                          final qty = double.tryParse(controller.text) ?? 0;
-                          addToCart(product, qty);
-                          controller.clear();
-                        },
+                        onAdd: () =>
+                            _addProductFromController(product, controller),
                       ),
                       if (index != produtosAtualizados.length - 1)
                         Divider(height: 1, color: Colors.grey[300]),
                     ],
                   );
                 }).toList(),
-            ],
+                ],
+              );
+            },
           ),
         );
       },
@@ -311,16 +465,29 @@ class _HomePageState extends State<HomePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 20),
-        const Text(
-          'Carrinho de Compras',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        Row(
+          children: const [
+            Icon(Icons.shopping_cart, color: Colors.green, size: 22),
+            SizedBox(width: 8),
+            Text(
+              'Carrinho de Compras',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: Colors.black,
+            color: const Color(0xFFE8F5E9),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.black),
+            border: Border.all(color: Colors.green.shade300),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.green.withOpacity(0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           child: Column(
             children: [
@@ -337,18 +504,39 @@ class _HomePageState extends State<HomePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Total de Itens:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
-                        Text(cart.length.toString(), style: TextStyle(color: Colors.white),),
+                        const Text(
+                          'Total de Itens:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          cart.length.toString(),
+                          style: const TextStyle(color: Colors.black87),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('TOTAL:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                        const Text(
+                          'TOTAL:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.black87,
+                          ),
+                        ),
                         Text(
                           'R\$ ${getTotalValue().toStringAsFixed(2).replaceAll('.', ',')}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.greenAccent),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.green,
+                          ),
                         ),
                       ],
                     ),
@@ -402,6 +590,10 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    for (final controller in _quantityControllers.values) {
+      controller.dispose();
+    }
+    _scrollController.dispose();
     _salePointController.dispose();
     super.dispose();
   }
@@ -410,6 +602,140 @@ class _HomePageState extends State<HomePage> {
 // ============================================================
 // COMPONENTES AUXILIARES
 // ============================================================
+
+class ProductCard extends StatelessWidget {
+  final Product product;
+  final TextEditingController controller;
+  final VoidCallback onAdd;
+
+  const ProductCard({
+    super.key,
+    required this.product,
+    required this.controller,
+    required this.onAdd,
+  });
+
+  String get unit {
+    if (product.amount != null && product.amount != -1) return 'un';
+    if (product.kg != null && product.kg != -1) return 'kg';
+    if (product.liters != null && product.liters != -1) return 'L';
+    return '';
+  }
+
+  String get stock {
+    if (unit == 'un') return '${product.amount ?? 0} un';
+    final value = unit == 'kg' ? product.kg ?? 0 : product.liters ?? 0;
+    return '${value.toStringAsFixed(2).replaceAll('.', ',')} $unit';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            product.name ?? 'Produto sem nome',
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _InfoChip(
+                icon: Icons.payments_outlined,
+                label:
+                    'R\$ ${product.price?.toStringAsFixed(2).replaceAll('.', ',') ?? '0,00'}',
+              ),
+              _InfoChip(
+                icon: Icons.inventory_2_outlined,
+                label: 'Disponível: $stock',
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    TextInputFormatter.withFunction((oldValue, newValue) {
+                      return RegExp(r'^\d*([\.,]\d*)?$')
+                              .hasMatch(newValue.text)
+                          ? newValue
+                          : oldValue;
+                    }),
+                  ],
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => onAdd(),
+                  decoration: InputDecoration(
+                    labelText: 'Quantidade',
+                    hintText: unit == 'un' ? 'Ex.: 2' : 'Ex.: 1,5',
+                    suffixText: unit,
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton.icon(
+                onPressed: onAdd,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(112, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.add_shopping_cart, size: 19),
+                label: const Text('Adicionar'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _InfoChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 17, color: Colors.grey[700]),
+          const SizedBox(width: 6),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+}
 
 class ProductRow extends StatelessWidget {
   final Product product;
@@ -424,9 +750,9 @@ class ProductRow extends StatelessWidget {
   });
 
   String _getUnit() {
-    if (product.amount != -1) return "un";
-    if (product.kg != -1) return "kg";
-    if (product.liters != -1) return "L";
+    if (product.amount != null && product.amount != -1) return "un";
+    if (product.kg != null && product.kg != -1) return "kg";
+    if (product.liters != null && product.liters != -1) return "L";
     return "";
   }
 
@@ -451,15 +777,24 @@ class ProductRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          Expanded(flex: 2, child: Text(product.name ?? "", style: const TextStyle(fontWeight: FontWeight.w500))),
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Text(
+                product.name ?? "Produto sem nome",
+                style: const TextStyle(fontWeight: FontWeight.w600),
+                softWrap: true,
+              ),
+            ),
+          ),
           Expanded(
             flex: 1,
             child: Text(
               'R\$ ${product.price?.toStringAsFixed(2).replaceAll('.', ',') ?? "0,00"}',
               textAlign: TextAlign.left,
               style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              softWrap: true,
             ),
           ),
           Expanded(
@@ -471,13 +806,29 @@ class ProductRow extends StatelessWidget {
             ),
           ),
           Expanded(
-            flex: 1,
+            flex: 2,
             child: TextField(
               controller: controller,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                TextInputFormatter.withFunction((oldValue, newValue) {
+                  final isValid = RegExp(r'^\d*([\.,]\d*)?$')
+                      .hasMatch(newValue.text);
+                  return isValid ? newValue : oldValue;
+                }),
+              ],
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => onAdd(),
               decoration: InputDecoration(
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                hintText: unit == 'un' ? 'Ex.: 2' : 'Ex.: 1,5',
+                suffixText: unit,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
                 isDense: true,
                 filled: true,
                 fillColor: Colors.grey[50],
@@ -485,16 +836,22 @@ class ProductRow extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           SizedBox(
-            width: 40,
-            child: ElevatedButton(
+            width: 82,
+            child: ElevatedButton.icon(
               onPressed: onAdd,
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(4),
-                minimumSize: const Size(0, 30),
+                backgroundColor: Colors.green[700],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: const Size(0, 40),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: const Icon(Icons.add, size: 18),
+              icon: const Icon(Icons.add_shopping_cart, size: 17),
+              label: const Text('Add'),
             ),
           ),
         ],
@@ -519,21 +876,35 @@ class CartItemRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
                 Text(
-                  '${item['quantity'].toStringAsFixed(2)} ${item['unit']}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14),
+                  item['name'],
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  '${(item['quantity'] as double).toStringAsFixed(item['unit'] == 'un' ? 0 : 2).replaceAll('.', ',')} ${item['unit']}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black54,
+                    fontSize: 14,
+                  ),
                 ),
               ],
             ),
           ),
           Text(
             'R\$ ${(item['price'] * item['quantity']).toStringAsFixed(2).replaceAll('.', ',')}',
-            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.greenAccent),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.green,
+            ),
           ),
           const SizedBox(width: 12),
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
             onPressed: onRemove,
             iconSize: 20,
           ),
