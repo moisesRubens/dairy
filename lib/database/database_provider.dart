@@ -25,7 +25,7 @@ class DatabaseProvider {
     
     return await openDatabase (
       path,
-      version: 1,
+      version: 2,
       onCreate: (Database db, int version) async {
         await db.execute('''
           CREATE TABLE products (
@@ -36,9 +36,15 @@ class DatabaseProvider {
             ${Product.amountColumn} INTEGER,
             ${Product.kgColumn} REAL, 
             ${Product.litersColumn} REAL,
+            ${Product.dateColumn} TEXT,
             updated_at TEXT
           );
         ''');
+      },
+      onUpgrade: (Database db, int oldVersion, int newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE products ADD COLUMN ${Product.dateColumn} TEXT');
+        }
       },
     );
   }

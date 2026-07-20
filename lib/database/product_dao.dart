@@ -9,7 +9,19 @@ class ProductDao {
   Future<List<Product>> getAllProducts2 () async {
     Database db = await _database.db;
 
-    List<Map<String, dynamic>> maps = await db.rawQuery("select * from products"); 
+    final today = DateTime.now();
+    final startOfDay = DateTime(today.year, today.month, today.day).toIso8601String();
+    final endOfDay = DateTime(today.year, today.month, today.day, 23, 59, 59, 999).toIso8601String();
+
+    await db.rawDelete(
+      "delete from products where date < ? or date > ?",
+      [startOfDay, endOfDay],
+    );
+
+    List<Map<String, dynamic>> maps = await db.rawQuery(
+      "select * from products where date >= ? and date <= ? order by date desc",
+      [startOfDay, endOfDay],
+    );
     List<Product> productsList = [];
 
     for (Map<String, dynamic> m in maps) {
