@@ -27,7 +27,7 @@ class DatabaseProvider {
       
       return await openDatabase (
         path,
-        version: 3,
+        version: 4,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
@@ -62,6 +62,19 @@ class DatabaseProvider {
           updated_at TEXT
         );
       ''');    
+      await db.execute('''
+        CREATE TABLE order_product (
+          ${Order.orderIdColumn} INT,
+          ${Product.productIdColumn} INT,
+          unit TEXT NOT NULL,
+          ${Product.priceColumn} REAL NOT NULL,
+          CONSTRAINT pk_order_product PRIMARY KEY (${Order.orderIdColumn}, ${Product.productIdColumn}),
+          FOREIGN KEY ${Order.orderIdColumn} REFERENCES orders(${Order.idColumn})
+            ON DELETE CASCADE,
+          FOREIGN KEY ${Product.productIdColumn} REFERENCES products(${Product.idColumn})
+            ON DELETE SET NULL
+        );
+      ''');
     } catch(e) {
       throw Exception('Erro ao criar banco de dados: $e');
     }
@@ -85,6 +98,21 @@ class DatabaseProvider {
           );
         ''');
       } 
+      if(oldVersion < 4) {
+        await db.execute('''
+          CREATE TABLE order_product (
+          ${Order.orderIdColumn} INT,
+          ${Product.productIdColumn} INT,
+          unit TEXT NOT NULL,
+          ${Product.priceColumn} REAL NOT NULL,
+          CONSTRAINT pk_order_product PRIMARY KEY (${Order.orderIdColumn}, ${Product.productIdColumn}),
+          FOREIGN KEY ${Order.orderIdColumn} REFERENCES orders(${Order.idColumn})
+            ON DELETE CASCADE,
+          FOREIGN KEY ${Product.productIdColumn} REFERENCES products(${Product.idColumn})
+            ON DELETE SET NULL
+          );
+        ''');
+      }
     } catch(e) {
       throw Exception('Erro ao atualizar banco de dados: $e');
     }
