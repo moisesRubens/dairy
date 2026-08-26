@@ -1,3 +1,4 @@
+import 'package:dairy/controllers/product_controller.dart';
 import 'package:flutter/material.dart';
 import '../domain/product.dart';
 import '../services/product_service.dart';
@@ -23,6 +24,7 @@ class InventoryPage extends StatefulWidget {
 }
 
 class _InventoryPageState extends State<InventoryPage> {
+  late final ProductController _controller;
   static final ProductService productService = ProductService();
   static final ValueNotifier<List<Product>> productsNotifier = ValueNotifier([]);
   
@@ -39,10 +41,12 @@ class _InventoryPageState extends State<InventoryPage> {
   final FocusNode _quantityFocusNode = FocusNode();
 
   @override
-  void initState() {
+  void initState({ProductController? controller}) 
+  {
     super.initState();
     _loadProducts();
     _checkAdminStatus();
+    _controller = controller ?? ProductController();
   }
 
   Future<void> _checkAdminStatus() async {
@@ -51,7 +55,7 @@ class _InventoryPageState extends State<InventoryPage> {
       if (salePointId != null) {
         final bool isAdmin = await productService.isAdmin(salePointId);
         setState(() => _isAdmin = isAdmin);
-        print('🔑 Status admin: $_isAdmin');
+        print('Status admin: $_isAdmin');
       } else {
         setState(() => _isAdmin = false);
       }
@@ -94,12 +98,21 @@ class _InventoryPageState extends State<InventoryPage> {
   // ============================================================
   // DIÁLOGO PARA ADICIONAR PRODUTO
   // ============================================================
-  void _showAddProductDialog() {
-    showDialog(
+  void _showAddProductDialog() async 
+  {
+    final Product? product = await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AddProductDialog(),
     );
+    if(product == null) return;
+    final bool success = await _controller.add(product);
+    if(success)
+    {
+      _showSnackBar("Produto criado ao estoque", Color(0xFF2E7D32));
+      return;
+    }
+    _showSnackBar("Erro ao criar produto ao estoque", Colors.red);
   }
 
   // ============================================================
@@ -551,14 +564,14 @@ class _AddProductDialogState extends State<AddProductDialog> {
     super.dispose();
   }
 
-  Future<void> _saveProduct() async {
+  Product? _saveProduct() {
     // 1. Validações
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('O nome é obrigatório.')),
       );
-      return;
+      return null;
     }
 
     final priceStr = _priceController.text.trim().replaceAll(',', '.');
@@ -567,7 +580,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Preço inválido.')),
       );
-      return;
+      return null;
     }
 
     final amountStr = _amountController.text.trim().replaceAll(',', '.');
@@ -578,7 +591,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Preencha pelo menos uma unidade (Amount, Kg ou Liters).')),
       );
-      return;
+      return null;
     }
 
     final int amount = amountStr.isEmpty ? -1 : (double.tryParse(amountStr)?.toInt() ?? -1);
@@ -593,38 +606,14 @@ class _AddProductDialogState extends State<AddProductDialog> {
       kg: kg,
       liters: liters,
     );
-
-    setState(() => _isLoading = true);
-
-    try {
-      final success = await _InventoryPageState.productService.createProduct(newProduct);
-      if (success) {
-        // Recarrega a lista da API para atualizar o notifier
-        final products = await _InventoryPageState.productService.getProducts();
-        _InventoryPageState.productsNotifier.value = products;
-
-        if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✅ Produto criado com sucesso!')),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('❌ Erro ao criar produto.')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Erro: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    return newProduct;
+  }
+    
+  void _handleSave()
+  {
+    final Product? product = _saveProduct();
+    if(product == null) return;
+    Navigator.pop(context, product);
   }
 
   @override
@@ -692,7 +681,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
-          onPressed: _isLoading ? null : _saveProduct,
+          onPressed: _isLoading ? null : _handleSave,
           child: _isLoading
               ? const SizedBox(
                   width: 20,
