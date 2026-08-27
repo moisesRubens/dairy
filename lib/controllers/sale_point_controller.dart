@@ -29,10 +29,47 @@ class SalePointController {
       isLoading.value = false;
     }
   }
+  
+  Future<bool> isAdmin(int salePointId) async 
+  {
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/${salePointId}');
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
 
-  // ============================================================
-  // 🔥 CARREGAR OUTBOUNDS POR DATA
-  // ============================================================
+    try 
+    {
+      final response = await http.get(
+        url,
+        headers: 
+        {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) 
+      {
+        final Map<String, dynamic> data = json.decode(response.body);
+        
+        // 🔥 AGORA VERIFICA O CAMPO 'level'
+        final bool isAdmin = data['level'] == 1; // level == 1 significa admin
+        
+        debugPrint('✅ SalePoint $salePointId é admin? $isAdmin (level: ${data['level']})');
+        return isAdmin;
+      } 
+      else 
+      {
+        debugPrint("❌ Erro ao verificar admin: ${response.statusCode}");
+        return false;
+      }
+    } 
+    catch (e) 
+    {
+      debugPrint("❌ Erro na requisição de verificação de admin: $e");
+      return false;
+    }
+  }
+
   Future<void> loadOutboundsByDate(String date) async {
     try {
       isLoading.value = true;

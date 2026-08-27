@@ -11,6 +11,9 @@ class ProductController extends ChangeNotifier
   ProductController({ProductService? service}) : _service = service ?? ProductService();
   
   bool get isLoading => _isLoading;
+  List<Product> get products => List.unmodifiable(_list);
+
+
 
   Future<bool> add(Product product) async
   {
@@ -44,4 +47,6 @@ class ProductController extends ChangeNotifier
       notifyListeners();
     }
   }
+
+
 }

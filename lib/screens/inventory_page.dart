@@ -1,5 +1,7 @@
 import 'package:dairy/controllers/product_controller.dart';
+import 'package:dairy/controllers/sale_point_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart';
 import '../domain/product.dart';
 import '../services/product_service.dart';
 import '../services/outbound_service.dart';
@@ -9,24 +11,13 @@ import '../services/auth_service.dart';
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
 
-  static Future<void> loadInventory() async {
-    try {
-      final data = await _InventoryPageState.productService.getProducts();
-      _InventoryPageState.productsNotifier.value = data;
-      print('✅ Estoque recarregado: ${data.length} produtos');
-    } catch (e) {
-      print('❌ Erro ao carregar estoque: $e');
-    }
-  }
-
   @override
   State<InventoryPage> createState() => _InventoryPageState();
 }
 
 class _InventoryPageState extends State<InventoryPage> {
-  late final ProductController _controller;
-  static final ProductService productService = ProductService();
-  static final ValueNotifier<List<Product>> productsNotifier = ValueNotifier([]);
+  late final ProductController _productController;
+  late final SalePointController _salePointController;
   
   final OutboundService _outboundService = OutboundService();
   final ProductDao _productDao = ProductDao();
@@ -41,19 +32,20 @@ class _InventoryPageState extends State<InventoryPage> {
   final FocusNode _quantityFocusNode = FocusNode();
 
   @override
-  void initState({ProductController? controller}) 
+  void initState({ProductController? productController, SalePointController? salePointController}) 
   {
     super.initState();
-    _loadProducts();
     _checkAdminStatus();
-    _controller = controller ?? ProductController();
+    _productController = productController ?? ProductController();
+    _productController.refreshProducts();
+    _salePointController = salePointController ?? SalePointController();
   }
 
   Future<void> _checkAdminStatus() async {
     try {
       final int? salePointId = await _authService.getCurrentSalePointId();
       if (salePointId != null) {
-        final bool isAdmin = await productService.isAdmin(salePointId);
+        final bool isAdmin = await _salePointController.isAdmin(salePointId);
         setState(() => _isAdmin = isAdmin);
         print('Status admin: $_isAdmin');
       } else {
@@ -67,15 +59,13 @@ class _InventoryPageState extends State<InventoryPage> {
   Future<void> _loadProducts() async {
     setState(() => _isLoading = true);
     try {
-      final data = await productService.getProducts();
+      final data = await _productController.products;
       if (!mounted) return;
-      productsNotifier.value = data;
       setState(() => _isLoading = false);
     } catch (e) {
       try {
         final localProducts = await _productDao.getAllProducts();
         if (!mounted) return;
-        productsNotifier.value = localProducts;
         setState(() => _isLoading = false);
         print('💾 ${localProducts.length} produtos carregados do banco');
       } catch (e2) {
@@ -106,7 +96,7 @@ class _InventoryPageState extends State<InventoryPage> {
       builder: (context) => const AddProductDialog(),
     );
     if(product == null) return;
-    final bool success = await _controller.add(product);
+    final bool success = await _productController.add(product);
     if(success)
     {
       _showSnackBar("Produto criado ao estoque", Color(0xFF2E7D32));
@@ -114,11 +104,8 @@ class _InventoryPageState extends State<InventoryPage> {
     }
     _showSnackBar("Erro ao criar produto ao estoque", Colors.red);
   }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
-  @override
+  
+  /*@override
   Widget build(BuildContext context) {
     return Column(
       children: [
@@ -176,11 +163,70 @@ class _InventoryPageState extends State<InventoryPage> {
         if (_selectedProductIds.isNotEmpty) _buildBottomQuantitySelector(),
       ],
     );
+  }*/
+
+  @override
+  Widget build(BuildContext context)
+  {
+    return ListenableBuilder(
+      listenable: _productController, 
+      builder: (context, child)
+      {
+        final products = _productController.products;
+        return Column(
+          children: [
+            if(_productController.isLoading)
+              const Expanded(
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+              )
+            else
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _productController.refreshProducts,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        if (_isAdmin)
+                          _buildHeaderCard(products.length),
+                        
+                        const SizedBox(height: 20),
+
+                        if (products.isEmpty)
+                          const Center(
+                            child: Text('Nenhum produto encontrado.'),
+                          )
+                        else
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics:
+                                const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.75,
+                            ),
+                            itemCount: products.length,
+                            itemBuilder: (context, index) {
+                              return _buildProductCard(products[index]);
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      }
+    );
   }
 
-  // ============================================================
-  // HEADER CARD (ATUALIZADO AUTOMATICAMENTE)
-  // ============================================================
+
   Widget _buildHeaderCard(int productCount) {
     return Container(
       decoration: BoxDecoration(
