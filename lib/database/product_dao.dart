@@ -157,26 +157,16 @@ class ProductDao {
     return product;
   }
   
-  Future<Product?> getProductByLocalId(int localId) async {
+  Future<List<Product>?> getProductByLocalId(List<int> idsList) async 
+  {
     final db = await DB.instance.database;
-    
     final List<Map<String, dynamic>> results = await db.query(
       'produtos',
-      where: 'id = ?',  
-      whereArgs: [localId],
+      where: 'id IN = ?',  
+      whereArgs: [idsList],
     );
-
     if (results.isEmpty) return null;
-
-    final map = results.first;
-    return Product(
-      id: map['produtoId'] as int?,  // ← id do backend
-      name: map['name'] as String,
-      price: map['price'] as double?,
-      amount: map['amount'] as int?,
-      kg: map['kg'] as double?,
-      liters: map['liters'] as double?,
-    );
+    return results.map((map) => Product.fromMap(map)).toList();
   }
 
   // ============================================================

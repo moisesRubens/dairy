@@ -242,43 +242,42 @@ class OutboundService {
     }
   }
   
-  Future<bool> createOutbound(Map<Product, double> outboundsQuantity, {String? observacao}) async {
+  Future<bool> createOutbound(List<Product>? products, double quantity, String? obs) async {
+    if(products == null) return false;
+
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
     final salePointId = prefs.getInt('sale_point_id'); 
 
-    if (token == null || salePointId == null) {
-      debugPrint("❌ Token ou sale_point_id não encontrado");
-      return false;
-    }
-
+    if (token == null || salePointId == null) return false;
     final url = Uri.parse('${ApiConfig.baseUrl}/auth/$salePointId/outbounds');
 
-    final List<Map<String, dynamic>> produtosJson = outboundsQuantity.entries.map((entry) {
-      Product product = entry.key;
+    final List<Map<String, dynamic>> produtosJson = products.map((entry) 
+    {
       String unit; 
-      
-      if (product.amount != -1) {
+      if (entry.amount != -1) 
         unit = "amount"; 
-      } else if (product.kg != -1) {
+      else if (entry.kg != -1) 
         unit = "kg";
-      } else {
+      else 
         unit = "liters"; 
-      }
-
-      return {
-        "product_id": product.productId,
-        "quantidade": entry.value,
+      
+      return 
+      {
+        "product_id": entry.productId,
+        "quantidade": quantity,
         "unidade": unit, 
       };
     }).toList();
 
-    final Map<String, dynamic> requestBody = {
+    final Map<String, dynamic> requestBody = 
+    {
       "produtos": produtosJson,
-      "observacao": observacao ?? "", 
+      "observacao": obs ?? "", 
     };
 
-    try {
+    try 
+    {
       final response = await http.post(
         url,
         headers: {
@@ -289,12 +288,12 @@ class OutboundService {
         body: json.encode(requestBody),
       );
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        for (final entry in outboundsQuantity.entries) {
-          final product = entry.key;
-          final quantity = entry.value;
+      if (response.statusCode == 201 || response.statusCode == 200) 
+      {
+        for (final entry in products) 
+        {
           final Product? localProduct = await dao.getProduct2(
-            productId: product.productId,
+            productId: entry.productId,
           );
 
           if (localProduct != null) {
@@ -308,16 +307,18 @@ class OutboundService {
             }
 
             await dao.updateQuantity2(localProduct);
-          } else {
+          } 
+          else 
+          {
             await dao.addProduct(Product(
-              productId: product.productId,
-              name: product.name,
-              price: product.price,
-              amount: product.amount != null && product.amount != -1
+              productId: entry.productId,
+              name: entry.name,
+              price: entry.price,
+              amount: entry.amount != null && entry.amount != -1
                   ? quantity.toInt()
                   : -1,
-              kg: product.kg != null && product.kg != -1 ? quantity : -1,
-              liters: product.liters != null && product.liters != -1
+              kg: entry.kg != null && entry.kg != -1 ? quantity : -1,
+              liters: entry.liters != null && entry.liters != -1
                   ? quantity
                   : -1,
             ));

@@ -1,3 +1,4 @@
+import 'package:dairy/controllers/outbound_controller.dart';
 import 'package:dairy/controllers/product_controller.dart';
 import 'package:dairy/controllers/sale_point_controller.dart';
 import 'package:flutter/material.dart';
@@ -18,13 +19,8 @@ class InventoryPage extends StatefulWidget {
 class _InventoryPageState extends State<InventoryPage> {
   late final ProductController _productController;
   late final SalePointController _salePointController;
+  late final OutboundController _outboundContrller;
   
-  final OutboundService _outboundService = OutboundService();
-  final ProductDao _productDao = ProductDao();
-  final AuthService _authService = AuthService();
-  
-  bool _isLoading = true;
-  bool _isAdmin = false;
 
   int? _expandedProductId;
   final Set<int> _selectedProductIds = {};
@@ -32,63 +28,23 @@ class _InventoryPageState extends State<InventoryPage> {
   final FocusNode _quantityFocusNode = FocusNode();
 
   @override
-  void initState({ProductController? productController, SalePointController? salePointController}) 
+  void initState({ProductController? productController, SalePointController? salePointController, OutboundController? outboundContrller}) 
   {
     super.initState();
-    _checkAdminStatus();
     _productController = productController ?? ProductController();
-    _productController.refreshProducts();
     _salePointController = salePointController ?? SalePointController();
-  }
-
-  Future<void> _checkAdminStatus() async {
-    try {
-      final int? salePointId = await _authService.getCurrentSalePointId();
-      if (salePointId != null) {
-        final bool isAdmin = await _salePointController.isAdmin(salePointId);
-        setState(() => _isAdmin = isAdmin);
-        print('Status admin: $_isAdmin');
-      } else {
-        setState(() => _isAdmin = false);
-      }
-    } catch (e) {
-      setState(() => _isAdmin = false);
-    }
-  }
-
-  Future<void> _loadProducts() async {
-    setState(() => _isLoading = true);
-    try {
-      final data = await _productController.products;
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-    } catch (e) {
-      try {
-        final localProducts = await _productDao.getAllProducts();
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        print('💾 ${localProducts.length} produtos carregados do banco');
-      } catch (e2) {
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao carregar estoque: $e')),
-        );
-      }
-    }
+    _outboundContrller = outboundContrller ?? OutboundController();
   }
 
   @override
-  void dispose() {
+  void dispose() 
+  {
     _quantityController.dispose();
     _quantityFocusNode.dispose();
     super.dispose();
   }
-
-  // ============================================================
-  // DIÁLOGO PARA ADICIONAR PRODUTO
-  // ============================================================
-  void _showAddProductDialog() async 
+  
+  void _showAddProductDialog(BuildContext context) async 
   {
     final Product? product = await showDialog(
       context: context,
@@ -99,71 +55,11 @@ class _InventoryPageState extends State<InventoryPage> {
     final bool success = await _productController.add(product);
     if(success)
     {
-      _showSnackBar("Produto criado ao estoque", Color(0xFF2E7D32));
+      _showSnackBar(context, "Produto criado ao estoque", Color(0xFF2E7D32));
       return;
     }
-    _showSnackBar("Erro ao criar produto ao estoque", Colors.red);
+    _showSnackBar(context, "Erro ao criar produto ao estoque", Colors.red);
   }
-  
-  /*@override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : RefreshIndicator(
-                  onRefresh: _loadProducts,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: 10),
-                        // 🔥 Card preto agora escuta mudanças no notifier
-                        if (_isAdmin)
-                          ValueListenableBuilder<List<Product>>(
-                            valueListenable: productsNotifier,
-                            builder: (context, products, child) {
-                              return _buildHeaderCard(products.length);
-                            },
-                          ),
-                        const SizedBox(height: 20),
-                        ValueListenableBuilder<List<Product>>(
-                          valueListenable: productsNotifier,
-                          builder: (context, products, child) {
-                            if (products.isEmpty) {
-                              return const Center(
-                                  child: Text("Nenhum produto encontrado."));
-                            }
-                            return GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 0.75,
-                              ),
-                              itemCount: products.length,
-                              itemBuilder: (context, index) {
-                                final product = products[index];
-                                return _buildProductCard(product);
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                    ),
-                  ),
-                ),
-        ),
-        if (_selectedProductIds.isNotEmpty) _buildBottomQuantitySelector(),
-      ],
-    );
-  }*/
 
   @override
   Widget build(BuildContext context)
@@ -189,8 +85,8 @@ class _InventoryPageState extends State<InventoryPage> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        if (_isAdmin)
-                          _buildHeaderCard(products.length),
+                        if (_salePointController.isAdmin)
+                          _buildHeaderCard(context, products.length),
                         
                         const SizedBox(height: 20),
 
@@ -212,7 +108,7 @@ class _InventoryPageState extends State<InventoryPage> {
                             ),
                             itemCount: products.length,
                             itemBuilder: (context, index) {
-                              return _buildProductCard(products[index]);
+                              return _buildProductCard(context, products[index]);
                             },
                           ),
                       ],
@@ -227,7 +123,7 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
 
-  Widget _buildHeaderCard(int productCount) {
+  Widget _buildHeaderCard(BuildContext context, int productCount) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.black,
@@ -260,7 +156,7 @@ class _InventoryPageState extends State<InventoryPage> {
             ],
           ),
           ElevatedButton.icon(
-            onPressed: _showAddProductDialog,
+            onPressed: () => {_showAddProductDialog(context)},
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
@@ -300,7 +196,7 @@ class _InventoryPageState extends State<InventoryPage> {
     return formatted;
   }
 
-  Widget _buildProductCard(Product product) {
+  Widget _buildProductCard(BuildContext context, Product product) {
     final bool isSelected = _selectedProductIds.contains(product.productId);
     final bool isExpanded = _expandedProductId == product.productId;
     num? quantity;
@@ -410,13 +306,13 @@ class _InventoryPageState extends State<InventoryPage> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.edit_outlined, size: 18),
-                          onPressed: () => _handleEdit(product),
+                          onPressed: () => _handleEdit(context, product),
                           constraints: const BoxConstraints(),
                           padding: const EdgeInsets.all(4),
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFE74C3C)),
-                          onPressed: () => _showDeleteDialog(product),
+                          onPressed: () => _showDeleteDialog(context, product),
                           constraints: const BoxConstraints(),
                           padding: const EdgeInsets.all(4),
                         ),
@@ -432,7 +328,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Widget _buildBottomQuantitySelector() {
+  Widget _buildBottomQuantitySelector(BuildContext context) {
     final int count = _selectedProductIds.length;
     return Container(
       padding: const EdgeInsets.all(20),
@@ -478,7 +374,10 @@ class _InventoryPageState extends State<InventoryPage> {
           ),
           const SizedBox(width: 12),
           ElevatedButton(
-            onPressed: _handleOutboundCreation,
+            onPressed: () 
+            {
+              _handleOutboundCreation(context);
+            } ,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2E7D32),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
@@ -490,59 +389,50 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Future<void> _handleOutboundCreation() async {
+  Future<void> _handleOutboundCreation(BuildContext context) async {
     final String quantityText = _quantityController.text.replaceAll(',', '.');
     final double? quantity = double.tryParse(quantityText);
 
     if (quantity == null || quantity <= 0) {
-      _showSnackBar('Por favor, insira uma quantidade válida.', Colors.red);
+      _showSnackBar(context, 'Por favor, insira uma quantidade válida.', Colors.red);
       return;
     }
 
-    if (_selectedProductIds.isEmpty) {
-      _showSnackBar('Selecione pelo menos um produto para registrar a saída.', Colors.red);
+    if (_selectedProductIds.isEmpty) 
+    {
+      _showSnackBar(context, 'Selecione pelo menos um produto para registrar a saída.', Colors.red);
       return;
     }
 
-    final Map<Product, double> outboundsMap = {};
-    for (int productId in _selectedProductIds) {
-      final product = productsNotifier.value.firstWhere((p) => p.productId == productId);
-      outboundsMap[product] = quantity;
-      print("ITENS DO MAP DE RETIRADAS: ${product}");
-      print("QUANTIDADE DE RETIRADAS: ${quantity}");
-    }
-
-    setState(() => _isLoading = true);
-
-    final bool success = await _outboundService.createOutbound(outboundsMap);
-
-    if (success) {
-      _showSnackBar('Saída de ${outboundsMap.length} item(s) registrado(s) com sucesso!',
+    List<Product> productsToRetire = _productController.products.where((product)
+    {
+      return _selectedProductIds.contains(product.id);
+    }).toList();
+    
+    final bool success = await _outboundContrller.createOutboundController(productsToRetire, quantity, "");
+    if (success) 
+    {
+      _showSnackBar(context, 'Saída de ${_selectedProductIds.length} item(s) registrado(s) com sucesso!',
           const Color(0xFF2E7D32));
       setState(() {
         _selectedProductIds.clear();
-        _isLoading = false;
       });
       _quantityController.clear();
       _quantityFocusNode.unfocus();
-      await _loadProducts();
       await OutboundService.refreshProducts();
-    } else {
-      setState(() => _isLoading = false);
-      _showSnackBar('Falha ao registrar saída. Verifique a conexão ou tente novamente', Colors.red);
+    } 
+    else 
+    {
+      _showSnackBar(context, 'Falha ao registrar saída. Verifique a conexão ou tente novamente', Colors.red);
     }
   }
 
-  void _handleNewProduct() {
-    _showAddProductDialog();
-  }
-
-  void _handleEdit(Product product) {
+  void _handleEdit(BuildContext context, product) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text('Editar: ${product.name}')));
   }
 
-  void _showDeleteDialog(Product product) {
+  void _showDeleteDialog(BuildContext context, Product product) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -572,7 +462,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  void _showSnackBar(String message, Color backgroundColor) {
+  void _showSnackBar(BuildContext context,String message, Color backgroundColor) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -610,7 +500,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
     super.dispose();
   }
 
-  Product? _saveProduct() {
+  Product? _saveProduct(BuildContext context) {
     // 1. Validações
     final name = _nameController.text.trim();
     if (name.isEmpty) {
@@ -655,9 +545,9 @@ class _AddProductDialogState extends State<AddProductDialog> {
     return newProduct;
   }
     
-  void _handleSave()
+  void _handleSave(BuildContext context)
   {
-    final Product? product = _saveProduct();
+    final Product? product = _saveProduct(context);
     if(product == null) return;
     Navigator.pop(context, product);
   }
@@ -727,7 +617,10 @@ class _AddProductDialogState extends State<AddProductDialog> {
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
-          onPressed: _isLoading ? null : _handleSave,
+          onPressed: () 
+          {
+            _isLoading ? null : _handleSave;
+          },
           child: _isLoading
               ? const SizedBox(
                   width: 20,

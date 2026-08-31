@@ -1,3 +1,4 @@
+import 'package:dairy/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -10,13 +11,33 @@ import '../services/outbound_service.dart';
 import '../services/order_service.dart';
 import '../domain/order.dart';
 
-class SalePointController {
+class SalePointController extends ChangeNotifier
+{
   final ProductDao _productDao = ProductDao();
   final OrderService _orderService = OrderService();
   final OutboundService _outboundService = OutboundService();
-  
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
   final ValueNotifier<String?> errorMessage = ValueNotifier<String?>(null);
+  
+  final AuthService _authService;
+  bool _isAdmin = false;
+  int? _salePointId;
+
+  bool get isAdmin => _isAdmin;
+  int? get salePointId => _salePointId;
+
+  SalePointController({AuthService? authService}) : _authService = authService ?? AuthService()
+  {
+    getSalePointId();
+  }
+  
+
+  Future<void> getSalePointId() async
+  { 
+    _salePointId = await _authService.getCurrentSalePointId();
+    if(_salePointId != null) _admVerification(_salePointId!);
+    notifyListeners();
+  }
 
   Future<void> loadAllOutbounds() async {
     try {
@@ -30,7 +51,7 @@ class SalePointController {
     }
   }
   
-  Future<bool> isAdmin(int salePointId) async 
+  Future<void> _admVerification(int salePointId) async 
   {
     final url = Uri.parse('${ApiConfig.baseUrl}/auth/${salePointId}');
     final prefs = await SharedPreferences.getInstance();
@@ -51,22 +72,19 @@ class SalePointController {
       {
         final Map<String, dynamic> data = json.decode(response.body);
         
-        // 🔥 AGORA VERIFICA O CAMPO 'level'
-        final bool isAdmin = data['level'] == 1; // level == 1 significa admin
+        final bool isAdmin = data['level'] == 1;
         
         debugPrint('✅ SalePoint $salePointId é admin? $isAdmin (level: ${data['level']})');
-        return isAdmin;
+        _isAdmin = isAdmin;
       } 
       else 
       {
         debugPrint("❌ Erro ao verificar admin: ${response.statusCode}");
-        return false;
       }
     } 
     catch (e) 
     {
       debugPrint("❌ Erro na requisição de verificação de admin: $e");
-      return false;
     }
   }
 
