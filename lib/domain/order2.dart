@@ -30,7 +30,7 @@ class Order {
       description: map['description'] ?? '',
       totalValue: (map['total_value'] ?? 0.0).toDouble(),
       dateTime: DateTime.parse(map['order_date']),
-      products: (map['items'] as List?)?.map((item) => Product.fromJson(item)).toList() ?? [],
+      products: (map['items'] as List?)?.map((item) => Product.fromMap(item)).toList() ?? [],
     );
   }
 

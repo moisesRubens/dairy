@@ -81,20 +81,14 @@ class ProductService {
   }
 
   final url = Uri.parse('${ApiConfig.baseUrl}/products/');
-  final List<Map<String, dynamic>> body = [
-    {
-      'name': product.name,
-      'price': product.price,
-      'amount': product.amount ?? -1,
-      'kg': product.kg ?? -1,
-      'liters': product.liters ?? -1,
-    }
-  ];
+  final Map<String, dynamic> body = product.toJson();
 
-  try {
+  try 
+  {
     final response = await http.post(
       url,
-      headers: {
+      headers: 
+      {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',

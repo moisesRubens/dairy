@@ -8,15 +8,16 @@ import '../services/product_service.dart';
 import '../services/outbound_service.dart';
 import '../database/product_dao.dart';
 import '../services/auth_service.dart';
+import '../Enums/product_enum.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
 
   @override
-  State<InventoryPage> createState() => _InventoryPageState();
+  State<InventoryPage> createState() => InventoryPageState();
 }
 
-class _InventoryPageState extends State<InventoryPage> {
+class InventoryPageState extends State<InventoryPage> {
   late final ProductController _productController;
   late final SalePointController _salePointController;
   late final OutboundController _outboundContrller;
@@ -34,6 +35,11 @@ class _InventoryPageState extends State<InventoryPage> {
     _productController = productController ?? ProductController();
     _salePointController = salePointController ?? SalePointController();
     _outboundContrller = outboundContrller ?? OutboundController();
+  }
+
+  void refreshProducts()
+  {
+    _productController.refreshProducts();
   }
 
   @override
@@ -199,19 +205,8 @@ class _InventoryPageState extends State<InventoryPage> {
   Widget _buildProductCard(BuildContext context, Product product) {
     final bool isSelected = _selectedProductIds.contains(product.productId);
     final bool isExpanded = _expandedProductId == product.productId;
-    num? quantity;
-    String unit = '';
-
-    if (product.amount != -1) {
-      quantity = product.amount;
-      unit = "un";
-    } else if (product.kg != -1) {
-      quantity = product.kg;
-      unit = "kg";
-    } else if (product.liters != -1) {
-      quantity = product.liters;
-      unit = "L";
-    }
+    num? quantity = product.quantity;
+    Unit unit = product.unitType;
 
     return GestureDetector(
       onTap: () {
@@ -485,18 +480,14 @@ class AddProductDialog extends StatefulWidget {
 class _AddProductDialogState extends State<AddProductDialog> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
-  final TextEditingController _amountController = TextEditingController();
-  final TextEditingController _kgController = TextEditingController();
-  final TextEditingController _litersController = TextEditingController();
+  final TextEditingController _quantityController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
-    _amountController.dispose();
-    _kgController.dispose();
-    _litersController.dispose();
+    _quantityController.dispose();
     super.dispose();
   }
 
@@ -519,28 +510,22 @@ class _AddProductDialogState extends State<AddProductDialog> {
       return null;
     }
 
-    final amountStr = _amountController.text.trim().replaceAll(',', '.');
-    final kgStr = _kgController.text.trim().replaceAll(',', '.');
-    final litersStr = _litersController.text.trim().replaceAll(',', '.');
+    final double quantity = double.parse(_quantityController.text.trim().replaceAll(',', '.'));
+    final Unit unitType = Unit.amount;  
 
-    if (amountStr.isEmpty && kgStr.isEmpty && litersStr.isEmpty) {
+    if (false) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Preencha pelo menos uma unidade (Amount, Kg ou Liters).')),
       );
       return null;
     }
 
-    final int amount = amountStr.isEmpty ? -1 : (double.tryParse(amountStr)?.toInt() ?? -1);
-    final double kg = kgStr.isEmpty ? -1 : (double.tryParse(kgStr) ?? -1);
-    final double liters = litersStr.isEmpty ? -1 : (double.tryParse(litersStr) ?? -1);
-
     final newProduct = Product(
       id: null,
       name: name,
       price: price,
-      amount: amount,
-      kg: kg,
-      liters: liters,
+      quantity: quantity,
+      unitType: unitType
     );
     return newProduct;
   }
@@ -578,27 +563,18 @@ class _AddProductDialogState extends State<AddProductDialog> {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _amountController,
+              controller: _quantityController,
               decoration: const InputDecoration(
-                labelText: 'Quantidade (un) - opcional',
+                labelText: 'Quantidade',
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _kgController,
+              controller: null,
               decoration: const InputDecoration(
-                labelText: 'Quantidade (kg) - opcional',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _litersController,
-              decoration: const InputDecoration(
-                labelText: 'Quantidade (L) - opcional',
+                labelText: 'TIPO DA UNIDADE',
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.numberWithOptions(decimal: true),

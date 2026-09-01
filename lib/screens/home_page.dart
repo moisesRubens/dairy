@@ -1,3 +1,5 @@
+import 'package:dairy/Enums/product_enum.dart';
+import 'package:dairy/widgets/product_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../domain/product.dart';
@@ -405,11 +407,10 @@ class HomePageState extends State<HomePage> {
                     return Column(
                       children: [
                         ProductCard(
-                          product: product,
-                          controller: controller,
-                          onAdd: () =>
-                              _addProductFromController(product, controller),
-                        ),
+                          product: product, 
+                          allocation: Allocation.sales, 
+                          unitType: product.unitType,
+                          onTap: () => {}),
                         if (entry.key != produtosAtualizados.length - 1)
                           Divider(height: 1, color: Colors.grey[300]),
                       ],
@@ -603,12 +604,12 @@ class HomePageState extends State<HomePage> {
 // COMPONENTES AUXILIARES
 // ============================================================
 
-class ProductCard extends StatelessWidget {
+class ProductCard1 extends StatelessWidget {
   final Product product;
   final TextEditingController controller;
   final VoidCallback onAdd;
 
-  const ProductCard({
+  const ProductCard1({
     super.key,
     required this.product,
     required this.controller,

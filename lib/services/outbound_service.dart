@@ -6,6 +6,7 @@ import 'package:dairy/config/api_config.dart';
 import 'package:flutter/material.dart';
 import '../database/product_dao.dart';
 import '../domain/outbound.dart';
+import 'package:intl/intl.dart';
 
 class OutboundService {
   final dao = ProductDao();
@@ -133,24 +134,22 @@ class OutboundService {
     }
   }
 
-  // ============================================================
-  // 🔥 CARREGAR OUTBOUNDS POR DATA ESPECÍFICA
-  // ============================================================
-  Future<void> loadOutboundsByDate(String date) async {
+  Future<List<Product>?> loadOutboundsByDate(String? date) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('access_token');
 
       if (token == null) {
         debugPrint("❌ Token não encontrado");
-        return;
+        return null;
       }
 
+      DateTime dateTime = (date != null) ? DateTime.parse(date!) : DateTime.now();
+      String dateFormat = DateFormat("dd/MM/yyyy").format(dateTime);
+      
       final url = Uri.parse(
-        '${ApiConfig.baseUrl}/outbounds/?date=$date'
+        '${ApiConfig.baseUrl}/outbounds/?date=$dateFormat'
       );
-
-      debugPrint('🌐 Buscando outbounds por data: $url');
 
       final response = await http.get(
         url,
@@ -161,19 +160,24 @@ class OutboundService {
         },
       );
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        _processOutboundsResponse(data);
-        debugPrint('📋 ${allSalePointsNotifier.value.length} pontos de venda carregados para data: $date');
-      } else {
+      if (response.statusCode == 200) 
+      {
+        final List<Map<String, dynamic>> data = jsonDecode(response.body);
+        final List<Product> outbounds = data.map((d)
+        {
+          return Product.fromMap(d);
+        }).toList();
+        return outbounds;
+      } 
+      else 
+      {
         debugPrint('❌ Erro ao buscar outbounds: ${response.statusCode}');
-        allSalePointsNotifier.value = [];
-        outboundsNotifier.value = [];
+        return null;
       }
-    } catch (e) {
+    } 
+    catch (e) 
+    {
       debugPrint('❌ Erro ao carregar outbounds por data: $e');
-      allSalePointsNotifier.value = [];
-      outboundsNotifier.value = [];
     }
   }
 
@@ -223,19 +227,6 @@ class OutboundService {
       final dao = ProductDao();
       final products = await dao.getAllProducts2();
       saleProductsNotifier.value = products;
-      
-      print('📊 ${products.length} produtos carregados do banco (retiradas):');
-      for (var p in products) {
-        if (p.amount != null && p.amount != -1) {
-          print('   - ${p.name}: amount=${p.amount} un');
-        } else if (p.kg != null && p.kg != -1) {
-          print('   - ${p.name}: kg=${p.kg}');
-        } else if (p.liters != null && p.liters != -1) {
-          print('   - ${p.name}: liters=${p.liters}');
-        } else {
-          print('   - ${p.name}: SEM QUANTIDADE');
-        }
-      }
     } catch (e) {
       print('❌ Erro ao carregar produtos do banco: $e');
       saleProductsNotifier.value = [];
@@ -254,20 +245,7 @@ class OutboundService {
 
     final List<Map<String, dynamic>> produtosJson = products.map((entry) 
     {
-      String unit; 
-      if (entry.amount != -1) 
-        unit = "amount"; 
-      else if (entry.kg != -1) 
-        unit = "kg";
-      else 
-        unit = "liters"; 
-      
-      return 
-      {
-        "product_id": entry.productId,
-        "quantidade": quantity,
-        "unidade": unit, 
-      };
+      return entry.toJson(); 
     }).toList();
 
     final Map<String, dynamic> requestBody = 
@@ -295,33 +273,13 @@ class OutboundService {
           final Product? localProduct = await dao.getProduct2(
             productId: entry.productId,
           );
-
           if (localProduct != null) {
-            if (localProduct.amount != null && localProduct.amount != -1) {
-              localProduct.amount = localProduct.amount! + quantity.toInt();
-            } else if (localProduct.kg != null && localProduct.kg != -1) {
-              localProduct.kg = localProduct.kg! + quantity;
-            } else if (localProduct.liters != null &&
-                localProduct.liters != -1) {
-              localProduct.liters = localProduct.liters! + quantity;
-            }
-
+            localProduct.setQuantity(quantity);
             await dao.updateQuantity2(localProduct);
           } 
           else 
           {
-            await dao.addProduct(Product(
-              productId: entry.productId,
-              name: entry.name,
-              price: entry.price,
-              amount: entry.amount != null && entry.amount != -1
-                  ? quantity.toInt()
-                  : -1,
-              kg: entry.kg != null && entry.kg != -1 ? quantity : -1,
-              liters: entry.liters != null && entry.liters != -1
-                  ? quantity
-                  : -1,
-            ));
+            await dao.addProduct(entry);
           }
         }
 
@@ -329,11 +287,15 @@ class OutboundService {
         await loadAllOutbounds();
 
         return true;
-      } else {
+      } 
+      else 
+      {
         debugPrint("❌ Erro na API: ${response.statusCode} - ${response.body}");
         return false;
       }
-    } catch (e) {
+    } 
+    catch (e) 
+    {
       debugPrint("❌ Erro de conexão ao criar saída: $e");
       return false;
     }
@@ -348,71 +310,26 @@ class OutboundService {
       
       print('📝 SALVANDO RETIRADA NO BANCO:');
       
-      for (var entry in outboundsQuantity.entries) {
+      for (var entry in outboundsQuantity.entries)
+      {
         final product = entry.key;
         final double quantity = entry.value;
 
-        var existing = await dao.getProductById(product.productId!);
-        if (existing != null) {
-
-          if (product.amount != -1) {
-            final newAmount = (existing.amount ?? 0) + quantity.toInt();
-            await dao.updateQuantity(product.id!, newAmount);
-          } else if (product.kg != -1) {
-            final newKg = (existing.kg ?? 0.0) + quantity;
-            await dao.updateKg(product.id!, newKg);
-          } else if (product.liters != -1) {
-            final newLiters = (existing.liters ?? 0.0) + quantity;
-            await dao.updateLiters(product.id!, newLiters);
-          }
-        } else {
-          if (product.amount != -1) {
-            final productWithAmount = Product(
-              productId: product.productId,
-              name: product.name,
-              price: product.price,
-              amount: quantity.toInt(),
-              kg: -1,
-              liters: -1,
-            );
-            await dao.addProduct(productWithAmount);
-          } else if (product.kg != -1) {
-            final productWithKg = Product(
-              productId: product.productId,
-              name: product.name,
-              price: product.price,
-              amount: -1,
-              kg: quantity,
-              liters: -1,
-            );
-            await dao.addProduct(productWithKg);
-          } else if (product.liters != -1) {
-            final productWithLiters = Product(
-              productId: product.productId,
-              name: product.name,
-              price: product.price,
-              amount: -1,
-              kg: -1,
-              liters: quantity,
-            );
-            await dao.addProduct(productWithLiters);
-          }
+        Product? p = await dao.getProductById(product.productId!);
+        if (p != null) 
+        {
+          p.setQuantity(quantity);
+          dao.updateProduct(p);
+        } 
+        else 
+        {
+          product.setQuantity(quantity);
+          await dao.addProduct(product);
         }
       }
-      
-      final allProducts = await dao.getAllProducts();
-      print('📊 BANCO APÓS SALVAR: ${allProducts.length} produtos:');
-      for (var p in allProducts) {
-        if (p.amount != -1) {
-          print('   - ${p.name}: amount=${p.amount} un');
-        } else if (p.kg != -1) {
-          print('   - ${p.name}: kg=${p.kg}');
-        } else if (p.liters != -1) {
-          print('   - ${p.name}: liters=${p.liters}');
-        }
-      }
-      
-    } catch (e) {
+    } 
+    catch (e) 
+    {
       print('❌ Erro ao salvar retirada no banco: $e');
       throw e;
     }

@@ -69,15 +69,21 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  late final InventoryPageState _inventoryPageState;
+  late final List<Widget> _pages;
+  final GlobalKey<InventoryPageState> _inventoryKey = GlobalKey<InventoryPageState>();
 
-  final List<Widget> _pages = [
-    HomePage(key: HomePage.homeKey),
-    const OrdersPage(),
-    const InventoryPage(),
-    const SalesPointsPage(),
-  ];
-
-  // 🔥 Exibe o diálogo de perfil
+  _MainShellState() {
+    _inventoryPageState = InventoryPageState();
+    _pages = [
+      HomePage(key: HomePage.homeKey),
+      const OrdersPage(),
+      InventoryPage(key: _inventoryKey),
+      const SalesPointsPage(),
+    ];
+  }
+  
+  
   void _showProfileDialog(BuildContext context) {
     // Busca os dados atuais do usuário
     Future<SalePoint?> futureUser = _authService.getCurrentSalePoint();
@@ -154,7 +160,7 @@ class _MainShellState extends State<MainShell> {
               OrdersPage.loadOrders();
               break;
             case 2:
-              InventoryPage.loadInventory();
+              _inventoryKey.currentState?.refreshProducts(); 
               break;
             case 3:
               SalesPointsPage.loadSalesPoints();
