@@ -16,10 +16,10 @@ class Product {
   double? price;
   late final Unit _unitType;
   double _quantity;
-  DateTime date;
+  DateTime? date;
 
   Unit get unitType => _unitType;
-  double? get quantity => _quantity;
+  double get quantity => _quantity;
 
   void setQuantity(double quantity)
   {
@@ -48,29 +48,6 @@ class Product {
     else if(map[litersColumn] != null && map[litersColumn] != -1) return Unit.liters;
     return Unit.amount;
   }
-
-  void _setUnitTypeToDatabase(Map<String, dynamic> map)
-  {
-    map[amountColumn] = (_unitType == Unit.amount) ? _quantity : -1;
-    map[kgColumn] = (_unitType == Unit.kg) ? _quantity : -1;
-    map[litersColumn] = (_unitType == Unit.liters) ? _quantity : -1;
-  }
-
-  void _setUnitTypeToJson(Map<String, dynamic> map)
-  {
-    map['amount'] = (_unitType == Unit.amount) ? _quantity : -1;
-    map['kg'] = (_unitType == Unit.kg) ? _quantity : -1;
-    map['liters'] = (_unitType == Unit.liters) ? _quantity : -1;
-  }
-
-  static Unit _setUnitTypeFromJson(Map<String, dynamic> map)
-  {
-    if(map['amount'] != null && map['amount'] != -1) return Unit.amount;
-    else if(map['kg'] != null && map['kg'] != -1) return Unit.kg;
-    else if(map['liters'] != null && map['liters'] != -1) return Unit.liters;
-    return Unit.amount;
-  }
-
   static double _setQuantityFromDatabase(Map<String, dynamic> map)
   {
     if(map[amountColumn] != null && map[amountColumn] != -1) return  map[amountColumn];
@@ -79,50 +56,59 @@ class Product {
     return map[amountColumn];
   }
 
-  static double _setQuantityFromJson(Map<String, dynamic> map)
-  {
-    if(map['amount'] != null && map['amount'] != -1) return  map['amount'];
-    else if(map['kg'] != null && map['kg'] != -1) return map['kg'];
-    else if(map['liters'] != null && map['liters'] != -1) return map['liters'];
-    return -1;
-  }
-
   Product.fromMap(Map<String, dynamic> map)
-      : date = DateTime.now(), _quantity = _setQuantityFromDatabase(map)
+      : _quantity = _setQuantityFromDatabase(map)
   {
     id = map[idColumn];
     productId = map[productIdColumn];
     name = map[nameColumn];
     price = map[priceColumn];
     _unitType = _setUnitTypeFromDatabase(map);
-
     final rawDate = map[dateColumn];
     if (rawDate is String) {
       date = DateTime.tryParse(rawDate) ?? DateTime.now();
     }
   }
 
-  Map<String, dynamic> toMap() {
-    final Map<String, dynamic> map = {
+  Map<String, dynamic> toMap() 
+  {
+    final Map<String, dynamic> map = 
+    {
+      idColumn: productId,
       productIdColumn: productId,
       nameColumn: name,
       priceColumn: price,
-      dateColumn: date.toIso8601String()
+      dateColumn: date?.toIso8601String(),
+      amountColumn: (_unitType == Unit.amount) ? _quantity : -1,
+      kgColumn: (_unitType == Unit.kg) ? _quantity : -1,
+      litersColumn: (_unitType == Unit.liters) ? _quantity : -1,
     };
-    _setUnitTypeToDatabase(map);
-    if(id != null) {
-      map[idColumn] = id;
-    }
     return map;
   }
 
-  factory Product.fromJson(Map<String, dynamic> json) {
+  factory Product.fromJson(Map<String, dynamic> json) 
+  {
+    if(json['amount'] != null && json['amount'] != -1)
+    {
+      json['quantity'] = json['amount'];
+      json['unitType'] = Unit.amount;
+    }
+    else if(json['kg'] != null && json['kg'] != -1)
+    {
+      json['quantity'] = json['kg'];
+      json['unitType'] = Unit.kg;
+    }
+    else
+    {
+      json['quantity'] = json['liters'];
+      json['unitType'] = Unit.liters;
+    }
     return Product(
-      id: json['id'] as int?,
-      name: json['name'] as String,
-      price: (json['price'] as num?)?.toDouble(),
-      unitType: _setUnitTypeFromJson(json),
-      quantity: _setQuantityFromJson(json)
+      unitType: json['unitType'],
+      quantity: json['quantity'],
+      name: json['name'],
+      price: json['price'],
+      productId: json['id']
     );
   }
 
@@ -130,8 +116,23 @@ class Product {
     Map<String, dynamic> map = {
       'name': name,
       'price': price,
+      'amount': (_unitType == Unit.amount) ? _quantity : -1,
+      'kg': (_unitType == Unit.kg) ? _quantity : -1,
+      'liters': (_unitType == Unit.liters) ? _quantity : -1,
     };
-    _setUnitTypeToJson(map);
     return map;
+  }
+
+  String get getUnitSymbol 
+  {
+    switch (_unitType) 
+    {
+      case Unit.kg:
+        return 'kg';
+      case Unit.liters:
+        return 'L';
+      case Unit.amount:
+        return 'un';
+    }
   }
 }

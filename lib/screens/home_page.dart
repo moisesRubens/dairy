@@ -147,23 +147,6 @@ class HomePageState extends State<HomePage> {
     }
   }
 
-  double _availableQuantity(Product product) {
-    if (product.amount != null && product.amount != -1) {
-      return product.amount!.toDouble();
-    }
-    if (product.kg != null && product.kg != -1) return product.kg!;
-    if (product.liters != null && product.liters != -1) {
-      return product.liters!;
-    }
-    return 0;
-  }
-
-  String _productUnit(Product product) {
-    if (product.amount != null && product.amount != -1) return 'un';
-    if (product.kg != null && product.kg != -1) return 'kg';
-    if (product.liters != null && product.liters != -1) return 'L';
-    return '';
-  }
 
   bool addToCart(Product product, double quantity) {
     if (quantity <= 0) return false;
@@ -174,15 +157,13 @@ class HomePageState extends State<HomePage> {
     final quantityInCart = existingIndex == -1
         ? 0.0
         : cart[existingIndex]['quantity'] as double;
-    final available = _availableQuantity(product);
 
-    if (quantity + quantityInCart > available) {
-      final unit = _productUnit(product);
+    if (quantity + quantityInCart > product.quantity) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Quantidade indisponível. Você possui '
-            '${available.toStringAsFixed(unit == 'un' ? 0 : 2).replaceAll('.', ',')} $unit.',
+            '${product.quantity.toStringAsFixed(product.unitType == Unit.amount ? 0 : 2).replaceAll('.', ',')} ${product.getUnitSymbol}',
           ),
           backgroundColor: Colors.orange[800],
         ),
@@ -197,7 +178,7 @@ class HomePageState extends State<HomePage> {
         cart.add({
           'name': product.name,
           'price': product.price ?? 0.0,
-          'unit': _productUnit(product),
+          'unit': product.getUnitSymbol,
           'quantity': quantity,
           'product': product,
         });
@@ -251,21 +232,7 @@ class HomePageState extends State<HomePage> {
     }
 
     final List<Product> productsToSell = cart.map((item) {
-      final product = item['product'] as Product;
-      return Product(
-        productId: product.productId,
-        name: product.name,
-        price: product.price,
-        amount: product.amount != null && product.amount != -1
-            ? (item['quantity'] as double).toInt()
-            : null,
-        kg: product.kg != null && product.kg != -1
-            ? item['quantity'] as double
-            : null,
-        liters: product.liters != null && product.liters != -1
-            ? item['quantity'] as double
-            : null,
-      );
+      return Product.fromMap(item);
     }).toList();
 
     final success = await _salePointController.fazerVenda(
@@ -616,19 +583,6 @@ class ProductCard1 extends StatelessWidget {
     required this.onAdd,
   });
 
-  String get unit {
-    if (product.amount != null && product.amount != -1) return 'un';
-    if (product.kg != null && product.kg != -1) return 'kg';
-    if (product.liters != null && product.liters != -1) return 'L';
-    return '';
-  }
-
-  String get stock {
-    if (unit == 'un') return '${product.amount ?? 0} un';
-    final value = unit == 'kg' ? product.kg ?? 0 : product.liters ?? 0;
-    return '${value.toStringAsFixed(2).replaceAll('.', ',')} $unit';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -652,7 +606,7 @@ class ProductCard1 extends StatelessWidget {
               ),
               _InfoChip(
                 icon: Icons.inventory_2_outlined,
-                label: 'Disponível: $stock',
+                label: 'Disponível: ${product.quantity}',
               ),
             ],
           ),
@@ -676,8 +630,8 @@ class ProductCard1 extends StatelessWidget {
                   onSubmitted: (_) => onAdd(),
                   decoration: InputDecoration(
                     labelText: 'Quantidade',
-                    hintText: unit == 'un' ? 'Ex.: 2' : 'Ex.: 1,5',
-                    suffixText: unit,
+                    hintText: product.getUnitSymbol == 'un' ? 'Ex.: 2' : 'Ex.: 1,5',
+                    suffixText: product.getUnitSymbol,
                     filled: true,
                     fillColor: Colors.grey[50],
                     border: OutlineInputBorder(
@@ -750,28 +704,17 @@ class ProductRow extends StatelessWidget {
     required this.onAdd,
   });
 
-  String _getUnit() {
-    if (product.amount != null && product.amount != -1) return "un";
-    if (product.kg != null && product.kg != -1) return "kg";
-    if (product.liters != null && product.liters != -1) return "L";
-    return "";
-  }
 
   String _formatQuantity() {
-    final unit = _getUnit();
-    if (unit == 'un') {
-      return product.amount?.toString() ?? '0';
-    } else if (unit == 'kg') {
-      return (product.kg ?? 0).toStringAsFixed(1).replaceAll('.', ',');
-    } else if (unit == 'L') {
-      return (product.liters ?? 0).toStringAsFixed(1).replaceAll('.', ',');
+    if (product.getUnitSymbol == 'un') {
+      return product.quantity.toString();
+    } else {
+      return (product.quantity).toStringAsFixed(1).replaceAll('.', ',');
     }
-    return '0';
   }
 
   @override
   Widget build(BuildContext context) {
-    final unit = _getUnit();
     final formattedQuantity = _formatQuantity();
 
     return Padding(
@@ -801,7 +744,7 @@ class ProductRow extends StatelessWidget {
           Expanded(
             flex: 1,
             child: Text(
-              '$formattedQuantity $unit',
+              '$formattedQuantity ${product.getUnitSymbol}',
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.w500),
             ),
@@ -821,8 +764,8 @@ class ProductRow extends StatelessWidget {
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => onAdd(),
               decoration: InputDecoration(
-                hintText: unit == 'un' ? 'Ex.: 2' : 'Ex.: 1,5',
-                suffixText: unit,
+                hintText: (product.getUnitSymbol == 'un') ? 'Ex.: 2' : 'Ex.: 1,5',
+                suffixText: product.getUnitSymbol,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

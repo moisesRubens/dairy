@@ -13,9 +13,10 @@ class ProductCard extends StatelessWidget
 
   ProductCard({required Product product, required Allocation allocation, required Unit unitType, required VoidCallback onTap}): _allocation = allocation, _unitType = unitType, _product = product, _onTap = onTap;
 
-  // ✅ Getter para o símbolo da unidade
-  String get _unitSymbol {
-    switch (_unitType) {
+  String get _unitSymbol 
+  {
+    switch (_unitType) 
+    {
       case Unit.kg:
         return 'kg';
       case Unit.liters:

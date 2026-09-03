@@ -35,6 +35,7 @@ class InventoryPageState extends State<InventoryPage> {
     _productController = productController ?? ProductController();
     _salePointController = salePointController ?? SalePointController();
     _outboundContrller = outboundContrller ?? OutboundController();
+    _productController.refreshProducts();
   }
 
   void refreshProducts()

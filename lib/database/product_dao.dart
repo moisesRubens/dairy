@@ -1,3 +1,4 @@
+import 'package:dairy/Enums/product_enum.dart';
 import 'package:sqflite/sqflite.dart';
 import '../domain/product.dart';
 import 'db.dart';
@@ -82,13 +83,20 @@ class ProductDao {
       'produtoId': product.id,  // ← id do backend
       'name': product.name,
       'price': product.price,
-      'amount': product.amount ?? 0,
-      'kg': product.kg ?? 0.0,
-      'liters': product.liters ?? 0.0,
       'updatedAt': DateTime.now().toIso8601String(),
     };
-
-    // Verifica se já existe pelo produtoId (id do backend)
+    switch(product.unitType)
+    {
+      case Unit.amount:
+        map['amount'] = product.quantity;
+        break;
+      case Unit.kg:
+        map['kg'] = product.quantity;
+        break;
+      case Unit.liters:
+        map['liters'] = product.quantity;
+    }
+    
     final existing = await db.query(
       'produtos',
       where: 'produtoId = ?',
@@ -121,25 +129,15 @@ class ProductDao {
     print('📦 ${products.length} produtos salvos no banco');
   }
 
-  // ============================================================
-  // BUSCAR TODOS OS PRODUTOS
-  // ============================================================
-  Future<List<Product>> getAllProducts() async {
+
+  Future<List<Product>> getAllProducts() async 
+  {
     final db = await DB.instance.database;
-    
     final List<Map<String, dynamic>> results = await db.query(
       'produtos',
       orderBy: 'name ASC',
     );
-
-    return results.map((map) => Product(
-      id: map['produtoId'] as int?,  // ← id do backend
-      name: map['name'] as String,
-      price: map['price'] as double?,
-      amount: map['amount'] as int?,
-      kg: map['kg'] as double?,
-      liters: map['liters'] as double?,
-    )).toList();
+    return results.map((map) => Product.fromMap(map)).toList();
   }
 
   Future<Product?> getProductById(int id) async {
@@ -169,29 +167,18 @@ class ProductDao {
     return results.map((map) => Product.fromMap(map)).toList();
   }
 
-  // ============================================================
-  // BUSCAR PRODUTO POR ID DO BACKEND
-  // ============================================================
-  Future<Product?> getProductByBackendId(int backendId) async {
+
+  Future<Product?> getProductByBackendId(int backendId) async 
+  {
     final db = await DB.instance.database;
     
     final List<Map<String, dynamic>> results = await db.query(
       'produtos',
-      where: 'produtoId = ?',  // ← id do backend
+      where: 'produtoId = ?',  
       whereArgs: [backendId],
     );
-
     if (results.isEmpty) return null;
-
-    final map = results.first;
-    return Product(
-      id: map['produtoId'] as int?,
-      name: map['name'] as String,
-      price: map['price'] as double?,
-      amount: map['amount'] as int?,
-      kg: map['kg'] as double?,
-      liters: map['liters'] as double?,
-    );
+    return Product.fromMap(results.first);
   }
 
   // ============================================================
@@ -207,31 +194,31 @@ class ProductDao {
       orderBy: 'name ASC',
     );
 
-    return results.map((map) => Product(
-      id: map['produtoId'] as int?,
-      name: map['name'] as String,
-      price: map['price'] as double?,
-      amount: map['amount'] as int?,
-      kg: map['kg'] as double?,
-      liters: map['liters'] as double?,
-    )).toList();
+    return results.map((map) => Product.fromMap(map)).toList();
   }
 
-  // ============================================================
-  // 🔥 ATUALIZAR PRODUTO COMPLETO (USADO PELO ORDER SERVICE)
-  // ============================================================
-  Future<void> updateProduct(Product product) async {
-    try {
+  Future<void> updateProduct(Product product) async 
+  {
+    try 
+    {
       final db = await DB.instance.database;
-
-      final updates = <String, dynamic>{
+      final updates = <String, dynamic>
+      {
         'name': product.name,
         'price': product.price,
-        'amount': product.amount ?? 0,
-        'kg': product.kg ?? 0.0,
-        'liters': product.liters ?? 0.0,
         'updatedAt': DateTime.now().toIso8601String(),
       };
+      switch(product.unitType)
+      {
+        case Unit.amount:
+          updates['amount'] = product.quantity;
+          break;
+        case Unit.kg:
+          updates['kg'] = product.quantity;
+          break;
+        case Unit.liters:
+          updates['liters'] = product.quantity;
+      }
 
       // 🔥 ATUALIZA PELO ID DO SQLITE
       // Precisamos encontrar o ID local do SQLite primeiro

@@ -6,8 +6,48 @@ import '../domain/product.dart';
 import '../config/api_config.dart';
 
 class ProductService {
-  Future<List<Product>> getProducts() async {
+  Future<List<Product>> getProducts() async 
+  {
     final url = Uri.parse('${ApiConfig.baseUrl}/products');
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+
+    try 
+    {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) 
+      {
+        Iterable dynamicList = json.decode(response.body);
+        List<Product> products = List<Product>.from(
+          dynamicList.map((data) => Product.fromJson(data))
+        );
+
+        return products;
+      }
+      else 
+      {
+        debugPrint("Erro ao buscar produtos: ${response.statusCode}");
+        return [];
+      }
+    } 
+    catch (e) 
+    {
+      debugPrint("Erro na requisição de produtos: $e");
+      return [];
+    }
+  }
+
+  Future<bool> isAdmin(int salePointId) async 
+  {
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/${salePointId}');
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
 
@@ -22,54 +62,22 @@ class ProductService {
       );
 
       if (response.statusCode == 200) {
-        Iterable dynamicList = json.decode(response.body);
-        List<Product> products = List<Product>.from(
-          dynamicList.map((data) => Product.fromJson(data))
-        );
-
-        return products;
+        final Map<String, dynamic> data = json.decode(response.body);
+        
+        // 🔥 AGORA VERIFICA O CAMPO 'level'
+        final bool isAdmin = data['level'] == 1; // level == 1 significa admin
+        
+        debugPrint('✅ SalePoint $salePointId é admin? $isAdmin (level: ${data['level']})');
+        return isAdmin;
       } else {
-        debugPrint("Erro ao buscar produtos: ${response.statusCode}");
-        return [];
+        debugPrint("❌ Erro ao verificar admin: ${response.statusCode}");
+        return false;
       }
     } catch (e) {
-      debugPrint("Erro na requisição de produtos: $e");
-      return [];
-    }
-  }
-
-  Future<bool> isAdmin(int salePointId) async {
-  final url = Uri.parse('${ApiConfig.baseUrl}/auth/${salePointId}');
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('access_token');
-
-  try {
-    final response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> data = json.decode(response.body);
-      
-      // 🔥 AGORA VERIFICA O CAMPO 'level'
-      final bool isAdmin = data['level'] == 1; // level == 1 significa admin
-      
-      debugPrint('✅ SalePoint $salePointId é admin? $isAdmin (level: ${data['level']})');
-      return isAdmin;
-    } else {
-      debugPrint("❌ Erro ao verificar admin: ${response.statusCode}");
+      debugPrint("❌ Erro na requisição de verificação de admin: $e");
       return false;
     }
-  } catch (e) {
-    debugPrint("❌ Erro na requisição de verificação de admin: $e");
-    return false;
   }
-}
 
   Future<bool> createProduct(Product product) async {
   final prefs = await SharedPreferences.getInstance();
