@@ -6,81 +6,49 @@ import 'package:go_router/go_router.dart';
 import 'screens/home_page.dart';
 import 'screens/orders_page.dart';
 import 'services/auth_service.dart';
-import 'services/outbound_service.dart';
 import 'database/db.dart';
 import 'domain/sale_point.dart';
+import 'controllers/auth_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Inicializa o banco
   await DB.instance.database;
-  
-  // Carrega apenas as retiradas do banco
-  await OutboundService.loadProductsFromLocal();
-  
-  runApp(const MyApp());
-}
-
-final AuthService _authService = AuthService();
-
-final GoRouter _router = GoRouter(
-  initialLocation: '/login',
-  redirect: (context, state) async {
-    final loggedIn = await _authService.isLoggedIn();
-    final goingToLogin = state.matchedLocation == '/login';
-    if (!loggedIn) return goingToLogin ? null : '/login';
-    if (goingToLogin) return '/';
-    return null;
-  },
-  routes: [
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const LoginPage(),
-    ),
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const MainShell(),
-    ),
-  ],
-);
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp.router(
-      routerConfig: _router,
+  runApp(
+    MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Fazenda Boa Esperança',
       theme: ThemeData(
         primaryColor: Colors.black,
         useMaterial3: true,
       ),
-    );
-  }
+      home: const LoginPage(),
+    )
+  );
 }
 
-class MainShell extends StatefulWidget {
+final AuthService _authService = AuthService();
+
+
+class MainShell extends StatefulWidget 
+{
   const MainShell({super.key});
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> 
+{
   int _currentIndex = 0;
-
   final List<Widget> _pages = [
     const HomePage(),
     const OrdersPage(),
     const InventoryPage(),
-    const SalesPointsPage(),
+    const SalesPointsPage()
   ];
 
-  // 🔥 Exibe o diálogo de perfil
-  void _showProfileDialog(BuildContext context) {
+  void _showProfileDialog(BuildContext context) 
+  {
     // Busca os dados atuais do usuário
     Future<SalePoint?> futureUser = _authService.getCurrentSalePoint();
 
@@ -136,29 +104,14 @@ class _MainShellState extends State<MainShell> {
       drawer: AppDrawer(
         onProfileTap: () => _showProfileDialog(context),
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
+      body: _pages[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
         elevation: 0,
         currentIndex: _currentIndex,
-        onTap: (index) {
+        onTap: (index) 
+        {
           setState(() => _currentIndex = index);
-          switch (index) {
-            case 1:
-              OrdersPage.loadOrders();
-              break;
-            case 2:
-              InventoryPage.loadInventory();
-              break;
-            case 3:
-              SalesPointsPage.loadSalesPoints();
-              break;
-            default:
-              break;
-          }
         },
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.black,
@@ -176,8 +129,9 @@ class _MainShellState extends State<MainShell> {
 
 class AppDrawer extends StatelessWidget {
   final VoidCallback onProfileTap;
+  final AuthController _authController = AuthController();
 
-  const AppDrawer({super.key, required this.onProfileTap});
+  AppDrawer({super.key, required this.onProfileTap});
 
   @override
   Widget build(BuildContext context) {
@@ -207,7 +161,7 @@ class AppDrawer extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFE74C3C)),
             ),
             onTap: () async {
-              await _authService.logout();
+              await _authController.logout();
               if (context.mounted) context.go('/login');
             },
           ),

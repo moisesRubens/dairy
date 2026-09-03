@@ -18,19 +18,14 @@ class DB {
     return _database!;
   }
 
-  Future<Database> _initDatabase() async {
-    // 🔥 INICIALIZAÇÃO DA FÁBRICA (APENAS UMA VEZ)
-    if (!_initialized) {
+  Future<Database> _initDatabase() async 
+  {
+    if (!_initialized) 
+    {
       await _configureDatabaseFactory();
       _initialized = true;
     }
-
-    // 🔥 CAMINHO DINÂMICO POR PLATAFORMA
     final path = await _getDatabasePath();
-    
-    print('📁 BANCO EM: $path');
-    print('🖥️ PLATAFORMA: ${await _getPlatformName()}');
-
     return await openDatabase(
       path,
       version: 3,
@@ -39,64 +34,65 @@ class DB {
     );
   }
 
-  // 🔥 CONFIGURA A FÁBRICA CORRETA PARA CADA PLATAFORMA
-  Future<void> _configureDatabaseFactory() async {
-    try {
-      if (_isWeb()) {
-        // 🌐 WEB - Usa o FFI para Web
-        print('🌐 Configurando database factory para WEB');
+  Future<void> _configureDatabaseFactory() async 
+  {
+    try 
+    {
+      if (_isWeb()) 
+      {
         databaseFactory = databaseFactoryFfiWeb;
-      } else if (Platform.isAndroid || Platform.isIOS) {
-        // 📱 MOBILE - Usa o sqflite nativo (já é o padrão)
-        print('📱 Usando database factory nativa para MOBILE');
-        // Não precisa mudar, sqflite já usa a nativa por padrão
-      } else {
-        // 💻 DESKTOP - Usa o FFI
-        print('💻 Configurando database factory para DESKTOP');
+      } else if (Platform.isAndroid || Platform.isIOS) 
+      {
+      } 
+      else 
+      {
+        // DESKTOP - Usa o FFI
         databaseFactory = databaseFactoryFfi;
       }
-    } catch (e) {
-      print('❌ Erro ao configurar database factory: $e');
-      // Fallback para o padrão
+    } 
+    catch (e) 
+    {
       databaseFactory = databaseFactoryFfi;
     }
   }
 
-  // 🔥 OBTÉM O CAMINHO CORRETO PARA CADA PLATAFORMA
-  Future<String> _getDatabasePath() async {
+  Future<String> _getDatabasePath() async 
+  {
     try {
       String path;
-      
-      if (_isWeb()) {
-        // 🌐 WEB - Usa apenas o nome do arquivo (salvo no IndexedDB)
+      if (_isWeb()) 
+      {
         path = 'dairy_database.db';
-      } else if (Platform.isAndroid || Platform.isIOS) {
-        // 📱 MOBILE - Diretório de documentos do app
+      } 
+      else if (Platform.isAndroid || Platform.isIOS) 
+      {
         final directory = await getApplicationDocumentsDirectory();
         path = join(directory.path, 'dairy_database.db');
-      } else if (Platform.isWindows) {
-        // 🪟 WINDOWS - AppData/Local/SeuApp
+      } 
+      else if (Platform.isWindows) 
+      {
         final directory = await getApplicationSupportDirectory();
         path = join(directory.path, 'dairy_database.db');
-      } else if (Platform.isLinux || Platform.isMacOS) {
-        // 🐧 LINUX / 🍎 MAC - Diretório do usuário
+      } 
+      else if (Platform.isLinux || Platform.isMacOS) 
+      {
         final directory = await getApplicationSupportDirectory();
         path = join(directory.path, 'dairy_database.db');
-      } else {
-        // FALLBACK - Usa o diretório padrão do sqflite
+      } 
+      else 
+      {
         final directory = await getDatabasesPath();
         path = join(directory, 'dairy_database.db');
       }
       
-      // Cria o diretório se não existir (exceto na web)
-      if (!_isWeb()) {
+      if (!_isWeb()) 
+      {
         final dir = Directory(dirname(path));
-        if (!await dir.exists()) {
+        if (!await dir.exists())
+        {
           await dir.create(recursive: true);
-          print('📁 Diretório criado: ${dir.path}');
         }
       }
-      
       return path;
     } catch (e) {
       print('❌ Erro ao obter caminho do banco: $e');
@@ -124,13 +120,10 @@ class DB {
   // ============================================================
   // 🔥 CRIAÇÃO DO BANCO DE DADOS (VERSÃO 3)
   // ============================================================
-  Future<void> _onCreate(Database db, int version) async {
-    print('🔄 Criando banco de dados versão $version...');
-    
-    try {
-      // ============================================================
-      // TABELA: produtos
-      // ============================================================
+  Future<void> _onCreate(Database db, int version) async
+  {
+    try 
+    {
       await db.execute('''
         CREATE TABLE produtos (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -144,9 +137,6 @@ class DB {
         )
       ''');
 
-      // ============================================================
-      // TABELA: orders (pedidos)
-      // ============================================================
       await db.execute('''
         CREATE TABLE orders (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -160,9 +150,6 @@ class DB {
         )
       ''');
 
-      // ============================================================
-      // TABELA: order_items (itens do pedido)
-      // ============================================================
       await db.execute('''
         CREATE TABLE order_items (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -177,35 +164,24 @@ class DB {
         )
       ''');
 
-      // ============================================================
-      // ÍNDICES
-      // ============================================================
       await db.execute('CREATE INDEX idx_produtos_name ON produtos(name)');
       await db.execute('CREATE INDEX idx_produtos_produtoId ON produtos(produtoId)');
       await db.execute('CREATE INDEX idx_orders_orderId ON orders(orderId)');
       await db.execute('CREATE INDEX idx_orders_order_date ON orders(order_date)');
       await db.execute('CREATE INDEX idx_order_items_order_id ON order_items(order_id)');
-
-      print('✅ Todas as tabelas criadas com sucesso!');
-      
-    } catch (e) {
-      print('❌ Erro ao criar tabelas: $e');
+    } 
+    catch (e) 
+    {
       rethrow;
     }
   }
 
-  // ============================================================
-  // 🔥 UPGRADE DO BANCO DE DADOS
-  // ============================================================
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    print('🔄 Atualizando banco de dados de $oldVersion para $newVersion...');
-    
-    try {
-      // ============================================================
-      // UPGRADE DA VERSÃO 1 PARA 2
-      // ============================================================
-      if (oldVersion < 2) {
-        // Cria tabela orders
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async 
+  {
+    try 
+    {
+      if (oldVersion < 2) 
+      {
         await db.execute('''
           CREATE TABLE orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -219,7 +195,6 @@ class DB {
           )
         ''');
 
-        // Cria tabela order_items
         await db.execute('''
           CREATE TABLE order_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -234,43 +209,36 @@ class DB {
           )
         ''');
 
-        // Cria índices
         await db.execute('CREATE INDEX idx_orders_orderId ON orders(orderId)');
         await db.execute('CREATE INDEX idx_orders_order_date ON orders(order_date)');
         await db.execute('CREATE INDEX idx_order_items_order_id ON order_items(order_id)');
-        
-        print('✅ Tabelas de pedidos criadas no upgrade (v1 → v2)!');
       }
       
-      // ============================================================
-      // UPGRADE DA VERSÃO 2 PARA 3
-      // ============================================================
-      if (oldVersion < 3) {
-        try {
-          // Verifica se as colunas já existem
+      if (oldVersion < 3) 
+      {
+        try 
+        {
           final columns = await db.rawQuery('PRAGMA table_info(order_items)');
           final hasProductName = columns.any((col) => col['name'] == 'product_name');
           final hasItemPrice = columns.any((col) => col['name'] == 'item_price');
           
-          if (!hasProductName) {
+          if (!hasProductName) 
+          {
             await db.execute('ALTER TABLE order_items ADD COLUMN product_name TEXT');
-            print('✅ Coluna product_name adicionada à order_items');
           }
-          
-          if (!hasItemPrice) {
+          if (!hasItemPrice) 
+          {
             await db.execute('ALTER TABLE order_items ADD COLUMN item_price REAL');
-            print('✅ Coluna item_price adicionada à order_items');
           }
-          
-          print('✅ Upgrade v2 → v3 concluído!');
-        } catch (e) {
+        }
+        catch (e) 
+        {
           print('⚠️ Erro ao adicionar colunas (podem já existir): $e');
         }
       }
-      
-      print('✅ Banco atualizado para versão $newVersion com sucesso!');
-    } catch (e) {
-      print('❌ Erro ao atualizar banco: $e');
+    } 
+    catch (e)
+    {
       rethrow;
     }
   }

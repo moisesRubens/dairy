@@ -1,37 +1,27 @@
+import 'package:dairy/controllers/outbound_controller.dart';
+import 'package:dairy/controllers/product_controller.dart';
+import 'package:dairy/controllers/sale_point_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart';
 import '../domain/product.dart';
 import '../services/product_service.dart';
 import '../services/outbound_service.dart';
 import '../database/product_dao.dart';
 import '../services/auth_service.dart';
+import '../Enums/product_enum.dart';
 
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
 
-  static Future<void> loadInventory() async {
-    try {
-      final data = await _InventoryPageState.productService.getProducts();
-      _InventoryPageState.productsNotifier.value = data;
-      print('✅ Estoque recarregado: ${data.length} produtos');
-    } catch (e) {
-      print('❌ Erro ao carregar estoque: $e');
-    }
-  }
-
   @override
-  State<InventoryPage> createState() => _InventoryPageState();
+  State<InventoryPage> createState() => InventoryPageState();
 }
 
-class _InventoryPageState extends State<InventoryPage> {
-  static final ProductService productService = ProductService();
-  static final ValueNotifier<List<Product>> productsNotifier = ValueNotifier([]);
+class InventoryPageState extends State<InventoryPage> {
+  late final ProductController _productController;
+  late final SalePointController _salePointController;
+  late final OutboundController _outboundContrller;
   
-  final OutboundService _outboundService = OutboundService();
-  final ProductDao _productDao = ProductDao();
-  final AuthService _authService = AuthService();
-  
-  bool _isLoading = true;
-  bool _isAdmin = false;
 
   int? _expandedProductId;
   final Set<int> _selectedProductIds = {};
@@ -39,136 +29,108 @@ class _InventoryPageState extends State<InventoryPage> {
   final FocusNode _quantityFocusNode = FocusNode();
 
   @override
-  void initState() {
+  void initState({ProductController? productController, SalePointController? salePointController, OutboundController? outboundContrller}) 
+  {
     super.initState();
-    _loadProducts();
-    _checkAdminStatus();
+    _productController = productController ?? ProductController();
+    _salePointController = salePointController ?? SalePointController();
+    _outboundContrller = outboundContrller ?? OutboundController();
+    _productController.refreshProducts();
   }
 
-  Future<void> _checkAdminStatus() async {
-    try {
-      final int? salePointId = await _authService.getCurrentSalePointId();
-      if (salePointId != null) {
-        final bool isAdmin = await productService.isAdmin(salePointId);
-        setState(() => _isAdmin = isAdmin);
-        print('🔑 Status admin: $_isAdmin');
-      } else {
-        setState(() => _isAdmin = false);
-      }
-    } catch (e) {
-      setState(() => _isAdmin = false);
-    }
-  }
-
-  Future<void> _loadProducts() async {
-    setState(() => _isLoading = true);
-    try {
-      final data = await productService.getProducts();
-      if (!mounted) return;
-      productsNotifier.value = data;
-      setState(() => _isLoading = false);
-    } catch (e) {
-      try {
-        final localProducts = await _productDao.getAllProducts();
-        if (!mounted) return;
-        productsNotifier.value = localProducts;
-        setState(() => _isLoading = false);
-        print('💾 ${localProducts.length} produtos carregados do banco');
-      } catch (e2) {
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao carregar estoque: $e')),
-        );
-      }
-    }
+  void refreshProducts()
+  {
+    _productController.refreshProducts();
   }
 
   @override
-  void dispose() {
+  void dispose() 
+  {
     _quantityController.dispose();
     _quantityFocusNode.dispose();
     super.dispose();
   }
-
-  // ============================================================
-  // DIÁLOGO PARA ADICIONAR PRODUTO
-  // ============================================================
-  void _showAddProductDialog() {
-    showDialog(
+  
+  void _showAddProductDialog(BuildContext context) async 
+  {
+    final Product? product = await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => const AddProductDialog(),
     );
+    if(product == null) return;
+    final bool success = await _productController.add(product);
+    if(success)
+    {
+      _showSnackBar(context, "Produto criado ao estoque", Color(0xFF2E7D32));
+      return;
+    }
+    _showSnackBar(context, "Erro ao criar produto ao estoque", Colors.red);
   }
 
-  // ============================================================
-  // BUILD
-  // ============================================================
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : RefreshIndicator(
-                  onRefresh: _loadProducts,
+  Widget build(BuildContext context)
+  {
+    return ListenableBuilder(
+      listenable: _productController, 
+      builder: (context, child)
+      {
+        final products = _productController.products;
+        return Column(
+          children: [
+            if(_productController.isLoading)
+              const Expanded(
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+              )
+            else
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _productController.refreshProducts,
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(16),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SizedBox(height: 10),
-                        // 🔥 Card preto agora escuta mudanças no notifier
-                        if (_isAdmin)
-                          ValueListenableBuilder<List<Product>>(
-                            valueListenable: productsNotifier,
-                            builder: (context, products, child) {
-                              return _buildHeaderCard(products.length);
+                        if (_salePointController.isAdmin)
+                          _buildHeaderCard(context, products.length),
+                        
+                        const SizedBox(height: 20),
+
+                        if (products.isEmpty)
+                          const Center(
+                            child: Text('Nenhum produto encontrado.'),
+                          )
+                        else
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics:
+                                const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.75,
+                            ),
+                            itemCount: products.length,
+                            itemBuilder: (context, index) {
+                              return _buildProductCard(context, products[index]);
                             },
                           ),
-                        const SizedBox(height: 20),
-                        ValueListenableBuilder<List<Product>>(
-                          valueListenable: productsNotifier,
-                          builder: (context, products, child) {
-                            if (products.isEmpty) {
-                              return const Center(
-                                  child: Text("Nenhum produto encontrado."));
-                            }
-                            return GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 0.75,
-                              ),
-                              itemCount: products.length,
-                              itemBuilder: (context, index) {
-                                final product = products[index];
-                                return _buildProductCard(product);
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
                 ),
-        ),
-        if (_selectedProductIds.isNotEmpty) _buildBottomQuantitySelector(),
-      ],
+              ),
+          ],
+        );
+      }
     );
   }
 
-  // ============================================================
-  // HEADER CARD (ATUALIZADO AUTOMATICAMENTE)
-  // ============================================================
-  Widget _buildHeaderCard(int productCount) {
+
+  Widget _buildHeaderCard(BuildContext context, int productCount) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.black,
@@ -201,7 +163,7 @@ class _InventoryPageState extends State<InventoryPage> {
             ],
           ),
           ElevatedButton.icon(
-            onPressed: _showAddProductDialog,
+            onPressed: () => {_showAddProductDialog(context)},
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
@@ -241,27 +203,16 @@ class _InventoryPageState extends State<InventoryPage> {
     return formatted;
   }
 
-  Widget _buildProductCard(Product product) {
-    final bool isSelected = _selectedProductIds.contains(product.id);
-    final bool isExpanded = _expandedProductId == product.id;
-    num? quantity;
-    String unit = '';
-
-    if (product.amount != -1) {
-      quantity = product.amount;
-      unit = "un";
-    } else if (product.kg != -1) {
-      quantity = product.kg;
-      unit = "kg";
-    } else if (product.liters != -1) {
-      quantity = product.liters;
-      unit = "L";
-    }
+  Widget _buildProductCard(BuildContext context, Product product) {
+    final bool isSelected = _selectedProductIds.contains(product.productId);
+    final bool isExpanded = _expandedProductId == product.productId;
+    num? quantity = product.quantity;
+    Unit unit = product.unitType;
 
     return GestureDetector(
       onTap: () {
         setState(() {
-          _expandedProductId = isExpanded ? null : product.id;
+          _expandedProductId = isExpanded ? null : product.productId;
         });
       },
       child: Container(
@@ -294,7 +245,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 children: [
                   const SizedBox(height: 4),
                   Text(
-                    product.name,
+                    product.name ?? "",
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -329,9 +280,9 @@ class _InventoryPageState extends State<InventoryPage> {
                             onChanged: (val) {
                               setState(() {
                                 if (val == true) {
-                                  _selectedProductIds.add(product.id!);
+                                  _selectedProductIds.add(product.productId!);
                                 } else {
-                                  _selectedProductIds.remove(product.id!);
+                                  _selectedProductIds.remove(product.productId!);
                                 }
                               });
                             },
@@ -351,13 +302,13 @@ class _InventoryPageState extends State<InventoryPage> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.edit_outlined, size: 18),
-                          onPressed: () => _handleEdit(product),
+                          onPressed: () => _handleEdit(context, product),
                           constraints: const BoxConstraints(),
                           padding: const EdgeInsets.all(4),
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFE74C3C)),
-                          onPressed: () => _showDeleteDialog(product),
+                          onPressed: () => _showDeleteDialog(context, product),
                           constraints: const BoxConstraints(),
                           padding: const EdgeInsets.all(4),
                         ),
@@ -373,7 +324,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Widget _buildBottomQuantitySelector() {
+  Widget _buildBottomQuantitySelector(BuildContext context) {
     final int count = _selectedProductIds.length;
     return Container(
       padding: const EdgeInsets.all(20),
@@ -419,7 +370,10 @@ class _InventoryPageState extends State<InventoryPage> {
           ),
           const SizedBox(width: 12),
           ElevatedButton(
-            onPressed: _handleOutboundCreation,
+            onPressed: () 
+            {
+              _handleOutboundCreation(context);
+            } ,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2E7D32),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
@@ -431,57 +385,50 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  Future<void> _handleOutboundCreation() async {
+  Future<void> _handleOutboundCreation(BuildContext context) async {
     final String quantityText = _quantityController.text.replaceAll(',', '.');
     final double? quantity = double.tryParse(quantityText);
 
     if (quantity == null || quantity <= 0) {
-      _showSnackBar('Por favor, insira uma quantidade válida.', Colors.red);
+      _showSnackBar(context, 'Por favor, insira uma quantidade válida.', Colors.red);
       return;
     }
 
-    if (_selectedProductIds.isEmpty) {
-      _showSnackBar('Selecione pelo menos um produto para registrar a saída.', Colors.red);
+    if (_selectedProductIds.isEmpty) 
+    {
+      _showSnackBar(context, 'Selecione pelo menos um produto para registrar a saída.', Colors.red);
       return;
     }
 
-    final Map<Product, double> outboundsMap = {};
-    for (int productId in _selectedProductIds) {
-      final product = productsNotifier.value.firstWhere((p) => p.id == productId);
-      outboundsMap[product] = quantity;
-    }
-
-    setState(() => _isLoading = true);
-
-    final bool success = await _outboundService.createOutbound(outboundsMap);
-
-    if (success) {
-      _showSnackBar('Saída de ${outboundsMap.length} item(s) registrado(s) com sucesso!',
+    List<Product> productsToRetire = _productController.products.where((product)
+    {
+      return _selectedProductIds.contains(product.id);
+    }).toList();
+    
+    final bool success = await _outboundContrller.createOutboundController(productsToRetire, quantity, "");
+    if (success) 
+    {
+      _showSnackBar(context, 'Saída de ${_selectedProductIds.length} item(s) registrado(s) com sucesso!',
           const Color(0xFF2E7D32));
       setState(() {
         _selectedProductIds.clear();
-        _isLoading = false;
       });
       _quantityController.clear();
       _quantityFocusNode.unfocus();
-      await _loadProducts();
       await OutboundService.refreshProducts();
-    } else {
-      setState(() => _isLoading = false);
-      _showSnackBar('Falha ao registrar saída. Verifique a conexão ou tente novamente', Colors.red);
+    } 
+    else 
+    {
+      _showSnackBar(context, 'Falha ao registrar saída. Verifique a conexão ou tente novamente', Colors.red);
     }
   }
 
-  void _handleNewProduct() {
-    _showAddProductDialog();
-  }
-
-  void _handleEdit(Product product) {
+  void _handleEdit(BuildContext context, product) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text('Editar: ${product.name}')));
   }
 
-  void _showDeleteDialog(Product product) {
+  void _showDeleteDialog(BuildContext context, Product product) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -511,7 +458,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  void _showSnackBar(String message, Color backgroundColor) {
+  void _showSnackBar(BuildContext context,String message, Color backgroundColor) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -534,29 +481,25 @@ class AddProductDialog extends StatefulWidget {
 class _AddProductDialogState extends State<AddProductDialog> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
-  final TextEditingController _amountController = TextEditingController();
-  final TextEditingController _kgController = TextEditingController();
-  final TextEditingController _litersController = TextEditingController();
+  final TextEditingController _quantityController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
-    _amountController.dispose();
-    _kgController.dispose();
-    _litersController.dispose();
+    _quantityController.dispose();
     super.dispose();
   }
 
-  Future<void> _saveProduct() async {
+  Product? _saveProduct(BuildContext context) {
     // 1. Validações
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('O nome é obrigatório.')),
       );
-      return;
+      return null;
     }
 
     final priceStr = _priceController.text.trim().replaceAll(',', '.');
@@ -565,64 +508,34 @@ class _AddProductDialogState extends State<AddProductDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Preço inválido.')),
       );
-      return;
+      return null;
     }
 
-    final amountStr = _amountController.text.trim().replaceAll(',', '.');
-    final kgStr = _kgController.text.trim().replaceAll(',', '.');
-    final litersStr = _litersController.text.trim().replaceAll(',', '.');
+    final double quantity = double.parse(_quantityController.text.trim().replaceAll(',', '.'));
+    final Unit unitType = Unit.amount;  
 
-    if (amountStr.isEmpty && kgStr.isEmpty && litersStr.isEmpty) {
+    if (false) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Preencha pelo menos uma unidade (Amount, Kg ou Liters).')),
       );
-      return;
+      return null;
     }
-
-    final int amount = amountStr.isEmpty ? -1 : (double.tryParse(amountStr)?.toInt() ?? -1);
-    final double kg = kgStr.isEmpty ? -1 : (double.tryParse(kgStr) ?? -1);
-    final double liters = litersStr.isEmpty ? -1 : (double.tryParse(litersStr) ?? -1);
 
     final newProduct = Product(
       id: null,
       name: name,
       price: price,
-      amount: amount,
-      kg: kg,
-      liters: liters,
+      quantity: quantity,
+      unitType: unitType
     );
-
-    setState(() => _isLoading = true);
-
-    try {
-      final success = await _InventoryPageState.productService.createProduct(newProduct);
-      if (success) {
-        // Recarrega a lista da API para atualizar o notifier
-        final products = await _InventoryPageState.productService.getProducts();
-        _InventoryPageState.productsNotifier.value = products;
-
-        if (mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✅ Produto criado com sucesso!')),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('❌ Erro ao criar produto.')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ Erro: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    return newProduct;
+  }
+    
+  void _handleSave(BuildContext context)
+  {
+    final Product? product = _saveProduct(context);
+    if(product == null) return;
+    Navigator.pop(context, product);
   }
 
   @override
@@ -651,27 +564,18 @@ class _AddProductDialogState extends State<AddProductDialog> {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _amountController,
+              controller: _quantityController,
               decoration: const InputDecoration(
-                labelText: 'Quantidade (un) - opcional',
+                labelText: 'Quantidade',
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _kgController,
+              controller: null,
               decoration: const InputDecoration(
-                labelText: 'Quantidade (kg) - opcional',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _litersController,
-              decoration: const InputDecoration(
-                labelText: 'Quantidade (L) - opcional',
+                labelText: 'TIPO DA UNIDADE',
                 border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.numberWithOptions(decimal: true),
@@ -690,7 +594,10 @@ class _AddProductDialogState extends State<AddProductDialog> {
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
-          onPressed: _isLoading ? null : _saveProduct,
+          onPressed: () 
+          {
+            _isLoading ? null : _handleSave;
+          },
           child: _isLoading
               ? const SizedBox(
                   width: 20,

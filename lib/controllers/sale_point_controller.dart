@@ -1,3 +1,4 @@
+import 'package:dairy/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -10,13 +11,33 @@ import '../services/outbound_service.dart';
 import '../services/order_service.dart';
 import '../domain/order.dart';
 
-class SalePointController {
+class SalePointController extends ChangeNotifier
+{
   final ProductDao _productDao = ProductDao();
   final OrderService _orderService = OrderService();
   final OutboundService _outboundService = OutboundService();
-  
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
   final ValueNotifier<String?> errorMessage = ValueNotifier<String?>(null);
+  
+  final AuthService _authService;
+  bool _isAdmin = false;
+  int? _salePointId;
+
+  bool get isAdmin => _isAdmin;
+  int? get salePointId => _salePointId;
+
+  SalePointController({AuthService? authService}) : _authService = authService ?? AuthService()
+  {
+    getSalePointId();
+  }
+  
+
+  Future<void> getSalePointId() async
+  { 
+    _salePointId = await _authService.getCurrentSalePointId();
+    if(_salePointId != null) _admVerification(_salePointId!);
+    notifyListeners();
+  }
 
   Future<void> loadAllOutbounds() async {
     try {
@@ -29,10 +50,44 @@ class SalePointController {
       isLoading.value = false;
     }
   }
+  
+  Future<void> _admVerification(int salePointId) async 
+  {
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/${salePointId}');
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
 
-  // ============================================================
-  // 🔥 CARREGAR OUTBOUNDS POR DATA
-  // ============================================================
+    try 
+    {
+      final response = await http.get(
+        url,
+        headers: 
+        {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) 
+      {
+        final Map<String, dynamic> data = json.decode(response.body);
+        
+        final bool isAdmin = data['level'] == 1;
+        
+        debugPrint('✅ SalePoint $salePointId é admin? $isAdmin (level: ${data['level']})');
+        _isAdmin = isAdmin;
+      } 
+      else 
+      {
+        debugPrint("❌ Erro ao verificar admin: ${response.statusCode}");
+      }
+    } 
+    catch (e) 
+    {
+      debugPrint("❌ Erro na requisição de verificação de admin: $e");
+    }
+  }
+
   Future<void> loadOutboundsByDate(String date) async {
     try {
       isLoading.value = true;
@@ -75,7 +130,7 @@ class SalePointController {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        await _productDao.deleteAll();
+        await _productDao.deleteAllProducts2();
         OutboundService.saleProductsNotifier.value = [];
         return true;
       } else {
@@ -87,10 +142,7 @@ class SalePointController {
       return false;
     } 
   }
-
-  // ============================================================
-  // 🔥 FAZER VENDA
-  // ============================================================
+  
   Future<bool> fazerVenda(
     List<Product> products, {
     String description = '',
@@ -105,13 +157,15 @@ class SalePointController {
         return false;
       }
 
-      final invalidProducts = products.where((p) => p.id == null);
+      final invalidProducts = products.where((p) { 
+        print("PRODUTO DA VENDA: ${p}");
+        return p.productId == null;
+      });
+
       if (invalidProducts.isNotEmpty) {
         errorMessage.value = 'Alguns produtos não têm ID válido';
         return false;
       }
-
-      debugPrint('🛒 Iniciando venda de ${products.length} produtos...');
 
       final success = await _orderService.createOrder(
         products: products,

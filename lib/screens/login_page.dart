@@ -1,6 +1,7 @@
+import 'package:dairy/controllers/auth_controller.dart';
+import 'package:dairy/main.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,9 +13,13 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _userController = TextEditingController();
   final _passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
+  
+  // 🔥 Usa o AuthController
+  final AuthController _authController = AuthController();
+  
   bool _isLoading = false;
   String? _errorMessage;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -24,31 +29,55 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _login() async {
+    // Validação básica
+    final username = _userController.text.trim();
+    final password = _passwordController.text;
+
+    if (username.isEmpty || password.isEmpty) {
+      setState(() {
+        _errorMessage = 'Preencha todos os campos.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final salePoint = await _authService.login(
-        _userController.text.trim(),
-        _passwordController.text,
-      );
+      final salePoint = await _authController.login(username, password);
 
       if (!mounted) return;
 
       if (salePoint != null) {
-        context.go('/');
+        // Login bem-sucedido
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Bem-vindo, ${salePoint.name}!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        
+        Navigator.push(
+          context, 
+          MaterialPageRoute(
+            builder: (BuildContext context) => const MainShell()
+          )
+        );
       } else {
+        // Credenciais inválidas
         setState(() {
-          _errorMessage = 'Credenciais inválidas. Tente novamente.';
+          _errorMessage = 'Usuário ou senha inválidos. Tente novamente.';
         });
       }
     } catch (e) {
-      if (!mounted) return;
+      // Erro na requisição
       setState(() {
-        _errorMessage = 'Erro ao conectar. Verifique sua conexão.';
+        _errorMessage = 'Erro ao conectar ao servidor. Verifique sua internet.';
       });
+      debugPrint('Login error: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -67,8 +96,12 @@ class _LoginPageState extends State<LoginPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Logo ou Nome da Fazenda
-              const Icon(Icons.agriculture, size: 64, color: Colors.black),
+              // Logo
+              const Icon(
+                Icons.agriculture,
+                size: 64,
+                color: Colors.black,
+              ),
               const SizedBox(height: 16),
               const Text(
                 'FAZENDA BOA ESPERANÇA',
@@ -81,45 +114,72 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 48),
 
-              // Input de Usuário
+              // Campo Usuário
               const Text(
                 'USUÁRIO',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _userController,
                 enabled: !_isLoading,
-                decoration: const InputDecoration(
+                textCapitalization: TextCapitalization.none,
+                onSubmitted: (_) => _login(),
+                decoration: InputDecoration(
                   hintText: 'Digite seu usuário',
-                  border: OutlineInputBorder(
+                  prefixIcon: const Icon(Icons.person_outline),
+                  border: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
-                  focusedBorder: OutlineInputBorder(
+                  focusedBorder: const OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.black, width: 2),
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
+                  errorText: _errorMessage != null && _userController.text.isEmpty 
+                      ? _errorMessage 
+                      : null,
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Input de Senha
+              // Campo Senha
               const Text(
                 'SENHA',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _passwordController,
-                obscureText: true,
+                obscureText: _obscurePassword,
                 enabled: !_isLoading,
                 onSubmitted: (_) => _login(),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: '********',
-                  border: OutlineInputBorder(
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword 
+                          ? Icons.visibility_off 
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
+                  border: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
-                  focusedBorder: OutlineInputBorder(
+                  focusedBorder: const OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.black, width: 2),
                     borderRadius: BorderRadius.all(Radius.circular(12)),
                   ),
@@ -127,20 +187,29 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 24),
 
+              // Mensagem de erro
               if (_errorMessage != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
-                  child: Text(
-                    _errorMessage!,
-                    style: const TextStyle(
-                      color: Color(0xFFE74C3C),
-                      fontWeight: FontWeight.bold,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
                     ),
-                    textAlign: TextAlign.center,
+                    child: Text(
+                      _errorMessage!,
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
 
-              // Botão de Login
+              // Botão Login
               ElevatedButton(
                 onPressed: _isLoading ? null : _login,
                 style: ElevatedButton.styleFrom(
@@ -151,6 +220,7 @@ class _LoginPageState extends State<LoginPage> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   elevation: _isLoading ? 0 : 2,
+                  minimumSize: const Size(double.infinity, 50),
                 ),
                 child: _isLoading
                     ? const SizedBox(
@@ -163,8 +233,24 @@ class _LoginPageState extends State<LoginPage> {
                       )
                     : const Text(
                         'ENTRAR',
-                        style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                          fontSize: 16,
+                        ),
                       ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Versão do app (opcional)
+              const Text(
+                'v1.0.0',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
