@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/product.dart';
-import '../domain/outbound.dart';
+import '../domain/sale_point.dart';
 import '../config/api_config.dart';
 import '../database/product_dao.dart';
 import '../services/outbound_service.dart';
@@ -26,11 +26,21 @@ class SalePointController extends ChangeNotifier
   bool get isAdmin => _isAdmin;
   int? get salePointId => _salePointId;
 
-  SalePointController({AuthService? authService}) : _authService = authService ?? AuthService()
+  final ValueNotifier<List<Map<String, dynamic>>> _salesPoints = 
+      ValueNotifier<List<Map<String, dynamic>>>([]);
+
+  SalePointController() : _authService = AuthService()
   {
     getSalePointId();
   }
-  
+
+  ValueNotifier<List<Map<String, dynamic>>> get salesPoints => _salesPoints;
+
+  Future<void> refreshSalesPoint() async
+  {
+    
+  }
+
 
   Future<void> getSalePointId() async
   { 
@@ -42,7 +52,7 @@ class SalePointController extends ChangeNotifier
   Future<void> loadAllOutbounds() async {
     try {
       isLoading.value = true;
-      await _outboundService.loadAllOutbounds();
+      await _outboundService.loadAllOutbounds(_salesPoints);
     } catch (e) {
       errorMessage.value = 'Erro ao carregar outbounds: $e';
       debugPrint('❌ Erro em loadAllOutbounds: $e');
@@ -100,11 +110,9 @@ class SalePointController extends ChangeNotifier
     }
   }
 
-  // ============================================================
-  // 🔥 MÉTODO ESTÁTICO PARA RECARREGAR (BOTTOM NAVIGATION)
-  // ============================================================
-  static Future<void> refreshOutbounds() async {
-    await OutboundService.refreshOutbounds();
+  Future<void> refreshOutbounds() async 
+  {
+    await OutboundService.refreshOutbounds(_salesPoints);
   }
 
   Future<bool> retornarProdutosAoEstoque() async {
@@ -213,29 +221,9 @@ class SalePointController extends ChangeNotifier
     }
   }
 
-  // ============================================================
-  // 🔥 BUSCAR TODOS OS PEDIDOS LOCAIS
-  // ============================================================
-  Future<List<Order>> getLocalOrders() async {
-    try {
-      return await _orderService.getLocalOrders();
-    } catch (e) {
-      debugPrint('❌ Erro ao buscar pedidos locais: $e');
-      return [];
-    }
-  }
+  
 
-  // ============================================================
-  // 🔥 BUSCAR PEDIDOS POR DATA
-  // ============================================================
-  Future<List<Order>> getLocalOrdersByDate(String date) async {
-    try {
-      return await _orderService.getLocalOrdersByDate(date);
-    } catch (e) {
-      debugPrint('❌ Erro ao buscar pedidos por data: $e');
-      return [];
-    }
-  }
+  
 
   // ============================================================
   // 🔥 LIMPAR RECURSOS

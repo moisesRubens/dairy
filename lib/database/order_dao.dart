@@ -1,5 +1,6 @@
+import 'package:dairy/domain/product.dart';
 import 'package:sqflite/sqflite.dart';
-import '../domain/order.dart';
+import '../domain/order2.dart';
 import '../domain/order_item.dart';
 import 'db.dart';
 
@@ -13,7 +14,7 @@ class OrderDao {
     final existing = await db.query(
       'orders',
       where: 'order_date = ? AND description = ?',
-      whereArgs: [order.orderDate, order.description],
+      whereArgs: [order.dateTime, order.description],
     );
 
     int orderLocalId;
@@ -24,9 +25,9 @@ class OrderDao {
         'orders',
         {
           'description': order.description,
-          'status': order.status ? 1 : 0,
+          'status': 1,
           'total_value': order.totalValue,
-          'order_date': order.orderDate,
+          'order_date': order.dateTime,
           'updated_at': DateTime.now().toIso8601String(),
         },
         where: 'id = ?',
@@ -41,27 +42,27 @@ class OrderDao {
     } else {
       orderLocalId = await db.insert('orders', {
         'description': order.description,
-        'status': order.status ? 1 : 0,
+        'status': 1,
         'total_value': order.totalValue,
-        'order_date': order.orderDate,
+        'order_date': order.dateTime,
         'created_at': DateTime.now().toIso8601String(),
       });
     }
-
-    // 🔥 SALVA OS ITENS COM OS NOVOS CAMPOS
-    for (var item in order.items) {
-      await db.insert('order_items', {
+    for (var item in order.products) 
+    {
+      await db.insert('order_items', 
+      {
         'order_id': orderLocalId,
         'product_id': item.productId,
-        'product_name': item.productName,  // 🔥 NOVO
-        'item_price': item.itemPrice,      // 🔥 NOVO
-        'amount': item.amount,
-        'kg': item.kg,
-        'liters': item.liters,
+        'product_name': item.name,  // 🔥 NOVO
+        'item_price': item.price,      // 🔥 NOVO
+        'amount': item.quantity,
+        'kg': item.quantity,
+        'liters': item.quantity,
       });
     }
 
-    print('✅ Pedido salvo localmente com ${order.items.length} itens');
+    print('✅ Pedido salvo localmente com ${order.products.length} itens');
   }
 
   // ============================================================
@@ -73,11 +74,10 @@ class OrderDao {
     }
     print('📦 ${orders.length} pedidos salvos localmente');
   }
+  
 
-  // ============================================================
-  // 🔥 BUSCAR TODOS OS PEDIDOS
-  // ============================================================
-  Future<List<Order>> getAllOrders() async {
+  Future<List<Order>> getAllOrders() async 
+  {
     final db = await _db.database;
 
     final results = await db.query(
@@ -87,13 +87,14 @@ class OrderDao {
 
     final List<Order> orders = [];
 
-    for (var map in results) {
+    for (var map in results) 
+    {
       final order = Order(
         description: map['description'] as String,
-        status: (map['status'] as int) == 1,
+        status: Status.values[['status'] as int],
         totalValue: (map['total_value'] as num).toDouble(),
-        orderDate: map['order_date'] as String,
-        items: [],
+        dateTime: map['order_date'] as DateTime,
+        products: [],
       );
 
       final itemsResults = await db.query(
@@ -102,19 +103,11 @@ class OrderDao {
         whereArgs: [map['id']],
       );
 
-      // 🔥 RECUPERA OS ITENS COM OS NOVOS CAMPOS
-      order.items = itemsResults.map((itemMap) => OrderItem(
-        productId: itemMap['product_id'] as int,
-        productName: itemMap['product_name'] as String? ?? 'Produto ${itemMap['product_id']}',  // 🔥 NOVO
-        itemPrice: (itemMap['item_price'] as num?)?.toDouble() ?? 0.0,  // 🔥 NOVO
-        amount: itemMap['amount'] as int,
-        kg: (itemMap['kg'] as num).toDouble(),
-        liters: (itemMap['liters'] as num).toDouble(),
-      )).toList();
-
+      order.setProducts(
+        itemsResults.map((item) => Product.fromMap(item)).toList()
+      );
       orders.add(order);
     }
-
     return orders;
   }
 
@@ -133,41 +126,26 @@ class OrderDao {
 
     final List<Order> orders = [];
 
-    for (var map in results) {
-      final order = Order(
-        description: map['description'] as String,
-        status: (map['status'] as int) == 1,
-        totalValue: (map['total_value'] as num).toDouble(),
-        orderDate: map['order_date'] as String,
-        items: [],
-      );
-
+    for (var map in results) 
+    {
+      final order = Order.fromMap(map);
       final itemsResults = await db.query(
         'order_items',
         where: 'order_id = ?',
         whereArgs: [map['id']],
       );
 
-      // 🔥 RECUPERA OS ITENS COM OS NOVOS CAMPOS
-      order.items = itemsResults.map((itemMap) => OrderItem(
-        productId: itemMap['product_id'] as int,
-        productName: itemMap['product_name'] as String? ?? 'Produto ${itemMap['product_id']}',
-        itemPrice: (itemMap['item_price'] as num?)?.toDouble() ?? 0.0,
-        amount: itemMap['amount'] as int,
-        kg: (itemMap['kg'] as num).toDouble(),
-        liters: (itemMap['liters'] as num).toDouble(),
-      )).toList();
-
+      order.setProducts(
+        itemsResults.map((item) => Product.fromMap(item)).toList()
+      );
       orders.add(order);
     }
-
     return orders;
   }
-
-  // ============================================================
-  // 🔥 BUSCAR PEDIDO POR DATA E DESCRIÇÃO
-  // ============================================================
-  Future<Order?> getOrderByDateAndDescription(String date, String description) async {
+  
+  
+  Future<Order?> getOrderByDateAndDescription(String date, String description) async 
+  {
     final db = await _db.database;
 
     final results = await db.query(
@@ -181,10 +159,10 @@ class OrderDao {
     final map = results.first;
     final order = Order(
       description: map['description'] as String,
-      status: (map['status'] as int) == 1,
+      status: Status.values[(map['status'] as int)],
       totalValue: (map['total_value'] as num).toDouble(),
-      orderDate: map['order_date'] as String,
-      items: [],
+      dateTime: map['order_date'] as DateTime,
+      products: [],
     );
 
     final itemsResults = await db.query(
@@ -193,23 +171,15 @@ class OrderDao {
       whereArgs: [map['id']],
     );
 
-    // 🔥 RECUPERA OS ITENS COM OS NOVOS CAMPOS
-    order.items = itemsResults.map((itemMap) => OrderItem(
-      productId: itemMap['product_id'] as int,
-      productName: itemMap['product_name'] as String? ?? 'Produto ${itemMap['product_id']}',
-      itemPrice: (itemMap['item_price'] as num?)?.toDouble() ?? 0.0,
-      amount: itemMap['amount'] as int,
-      kg: (itemMap['kg'] as num).toDouble(),
-      liters: (itemMap['liters'] as num).toDouble(),
-    )).toList();
-
+    order.setProducts(
+      itemsResults.map((item) => Product.fromMap(item)).toList()
+    );
     return order;
   }
 
-  // ============================================================
-  // 🔥 DELETAR PEDIDO
-  // ============================================================
-  Future<void> deleteOrder(String date, String description) async {
+
+  Future<void> deleteOrder(DateTime date, String? description) async 
+  {
     final db = await _db.database;
     
     final results = await db.query(

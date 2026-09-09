@@ -160,9 +160,16 @@ class AppDrawer extends StatelessWidget {
               'SAIR',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFE74C3C)),
             ),
-            onTap: () async {
+            onTap: () async 
+            {
               await _authController.logout();
-              if (context.mounted) context.go('/login');
+              if (context.mounted) 
+              {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (BuildContext context) => const LoginPage())
+                );
+              }
             },
           ),
         ],

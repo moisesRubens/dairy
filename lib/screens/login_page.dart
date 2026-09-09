@@ -1,4 +1,5 @@
 import 'package:dairy/controllers/auth_controller.dart';
+import 'package:dairy/domain/sale_point.dart';
 import 'package:dairy/main.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -28,30 +29,33 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  Future<void> _login() async {
-    // Validação básica
+  Future<void> _login() async 
+  {
     final username = _userController.text.trim();
-    final password = _passwordController.text;
+    final password = _passwordController.text.trim();
 
-    if (username.isEmpty || password.isEmpty) {
+    if (username.isEmpty || password.isEmpty) 
+    {
       setState(() {
         _errorMessage = 'Preencha todos os campos.';
       });
       return;
     }
 
-    setState(() {
+    setState(() 
+    {
       _isLoading = true;
       _errorMessage = null;
     });
 
-    try {
-      final salePoint = await _authController.login(username, password);
+    try 
+    {
+      final SalePoint? salePoint = await _authController.login(username, password);
 
       if (!mounted) return;
 
-      if (salePoint != null) {
-        // Login bem-sucedido
+      if (salePoint != null) 
+      {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Bem-vindo, ${salePoint.name}!'),
@@ -59,27 +63,33 @@ class _LoginPageState extends State<LoginPage> {
             duration: const Duration(seconds: 2),
           ),
         );
-        
         Navigator.push(
           context, 
           MaterialPageRoute(
             builder: (BuildContext context) => const MainShell()
           )
         );
-      } else {
-        // Credenciais inválidas
-        setState(() {
+      } 
+      else 
+      {
+        setState(() 
+        {
           _errorMessage = 'Usuário ou senha inválidos. Tente novamente.';
         });
       }
-    } catch (e) {
-      // Erro na requisição
-      setState(() {
-        _errorMessage = 'Erro ao conectar ao servidor. Verifique sua internet.';
+    } 
+    catch (e) 
+    {
+      setState(() 
+      {
+        _errorMessage = 'Erro ao fazer login. Verifique sua internet.';
       });
       debugPrint('Login error: $e');
-    } finally {
-      if (mounted) {
+    } 
+    finally 
+    {
+      if (mounted) 
+      {
         setState(() => _isLoading = false);
       }
     }

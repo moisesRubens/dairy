@@ -2,6 +2,14 @@ import 'package:dairy/domain/order_item.dart';
 import 'package:dairy/domain/product.dart';
 import 'package:flutter/foundation.dart';
 
+
+enum Status 
+{
+  pago,
+  pendente, 
+  desconto,
+}
+
 class Order {
   static const String idColumn = "id";
   static const String orderIdColumn = "order_id";
@@ -14,14 +22,19 @@ class Order {
   int? orderId;
   String? description;
   double? totalValue;
-  bool status;
-  final List<Product> _products;
+  Status status;
+  List<Product> _products = [];
   DateTime dateTime;
 
   Order({required this.status, this.id, this.description, this.totalValue, List<Product>? products, this.orderId, DateTime? dateTime}): _products = products ?? [],
   dateTime = dateTime ?? DateTime.now();
 
   List<Product> get products => _products;
+
+  void setProducts(List<Product> products)
+  {
+    _products = products;
+  }
 
   factory Order.fromJson(Map<String, dynamic> map) {
     return Order(

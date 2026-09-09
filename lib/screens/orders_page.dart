@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../controllers/order_controller.dart';
-import '../domain/order.dart';
+import '../domain/order2.dart';
 import '../domain/order_item.dart';
 
 class OrdersPage extends StatefulWidget {
@@ -21,7 +21,7 @@ class OrdersPage extends StatefulWidget {
 }
 
 class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
-  final OrderController _orderController = OrderController();
+  final OrderController _orderController;
   final TextEditingController _searchController = TextEditingController();
   DateTime? _selectedDate;
   String? _selectedStatus;
@@ -30,17 +30,18 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
 
   static const List<String> _statusOptions = ['Pendente', 'Finalizado', 'Desconto'];
 
+  _OrdersPageState() : _orderController = OrderController();
+
   @override
-  void initState() {
+  void initState() 
+  {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadOrders();
     
-    _orderController.orders.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    if(mounted)
+    {
+      _orderController.loadOrders();
+    }
   }
 
   @override
@@ -73,25 +74,26 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
 
   Future<void> _loadOrders() async {
     await _orderController.loadOrders();
-    debugPrint('🔄 Pedidos recarregados: ${_orderController.orders.value.length}');
   }
 
-  // ============================================================
-  // 🔥 CONVERTER ORDER PARA MAP (para a tabela)
-  // ============================================================
-  List<Map<String, dynamic>> _getOrdersAsMap() {
-    final orders = _orderController.orders.value;
+
+  List<Map<String, dynamic>> _getOrdersAsMap() 
+  {
+    final orders = _orderController.orders2.value;
     
-    return orders.map((order) {
-      String formattedDateTime = order.orderDate;
-      try {
-        final date = DateTime.parse(order.orderDate);
-        formattedDateTime = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year.toString().substring(2)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-      } catch (_) {
-        formattedDateTime = order.orderDate;
+    return orders.map((order) 
+    {
+      String formattedDateTime = '';
+      try 
+      {
+        formattedDateTime = '${order.dateTime.day.toString().padLeft(2, '0')}/${order.dateTime.month.toString().padLeft(2, '0')}/${order.dateTime.year.toString().substring(2)} ${order.dateTime.hour.toString().padLeft(2, '0')}:${order.dateTime.minute.toString().padLeft(2, '0')}';
+      } 
+      catch (e) 
+      {
+        formattedDateTime = order.dateTime.toIso8601String();
       }
 
-      String formattedValue = 'R\$ ${order.totalValue.toStringAsFixed(2).replaceAll('.', ',')}';
+      String formattedValue = 'R\$ ${order.totalValue!.toStringAsFixed(2).replaceAll('.', ',')}';
       String status = 'Finalizado';
       Color statusColor = const Color(0xFF2E7D32);
 
@@ -105,10 +107,9 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
     }).toList();
   }
 
-  // ============================================================
-  // 🔥 FILTRAR PEDIDOS
-  // ============================================================
-  List<Map<String, dynamic>> _getFilteredOrders() {
+
+  List<Map<String, dynamic>> _getFilteredOrders() 
+  {
     final allOrders = _getOrdersAsMap();
     final searchText = _searchController.text.toLowerCase();
 
@@ -169,7 +170,7 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
                     );
                   }
 
-                  if (_orderController.orders.value.isEmpty) {
+                  if (_orderController.orders2.value.isEmpty) {
                     return Container(
                       padding: const EdgeInsets.all(40),
                       decoration: BoxDecoration(
@@ -197,7 +198,7 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
                     );
                   }
 
-                  return _buildOrdersTable(filteredOrders, _currentPage);
+                  return _buildOrdersTable(_orderController.orders2, _currentPage);
                 },
               ),
               
@@ -358,9 +359,9 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
     }
   }
 
-  Widget _buildOrdersTable(List<Map<String, dynamic>> filteredOrders, int page) {
+  Widget _buildOrdersTable(ValueNotifier<List<Order>> filteredOrders, int page) {
     final startIndex = page * _pageSize;
-    final visibleOrders = filteredOrders.skip(startIndex).take(_pageSize).toList();
+    final visibleOrders = filteredOrders.value.skip(startIndex).take(_pageSize).toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -400,15 +401,30 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildOrderRow(Map<String, dynamic> order) {
+  Color statusToColor(Order order)
+  {
+    switch(order.status)
+    {
+      case 0:
+        return Colors.green;
+      case 1:
+        return Colors.yellow;
+      case 2: 
+        return Colors.blueAccent;
+      default: 
+        return Colors.red;
+    }
+  }
+
+  Widget _buildOrderRow(Order order) {
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           child: Row(
             children: [
-              Expanded(flex: 4, child: Text(order['date']?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: Color(0xFF333333)))),
-              Expanded(flex: 3, child: Text(order['value']?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)))),
+              Expanded(flex: 4, child: Text(order.dateTime?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: Color(0xFF333333)))),
+              Expanded(flex: 3, child: Text(order.totalValue?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)))),
               Expanded(
                 flex: 3,
                 child: Align(
@@ -416,15 +432,15 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                     decoration: BoxDecoration(
-                      color: (order['color'] as Color).withOpacity(0.1),
+                      color: statusToColor(order),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      order['status']?.toString().toUpperCase() ?? '',
+                      order.status?.toString().toUpperCase() ?? '',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: order['color'] as Color,
+                        color: statusToColor(order),
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
@@ -509,13 +525,11 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
     );
   }
 
-  // ============================================================
-  // 🔥 AÇÕES
-  // ============================================================
-  void _handleDetails(Map<String, dynamic> order) {
-    final Order? realOrder = order['order'];
-    
-    if (realOrder != null) {
+
+  void _handleDetails(Order? order) 
+  {
+    if (order != null) 
+    {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -545,10 +559,9 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
                     )
                   ),
                   const SizedBox(height: 8),
-                  ...realOrder.items.map((item) {
-                    String quantity = item.getQuantityString();
-                    String subtotal = 'R\$ ${item.subtotal.toStringAsFixed(2).replaceAll('.', ',')}';
-                    String price = 'R\$ ${item.itemPrice.toStringAsFixed(2).replaceAll('.', ',')}';
+                  ...order.products.map((item) 
+                  {
+                    double subTotal = item.price! * item.quantity;
                     
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -563,7 +576,7 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
                         children: [
                           Center(
                             child: Text(
-                              item.productName, 
+                              item.name!, 
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold, 
                                 fontSize: 15,
@@ -575,16 +588,16 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Quantidade: $quantity', style: const TextStyle(fontSize: 14, color: Color(0xFF333333))),
+                              Text('Quantidade: ${item.quantity}', style: const TextStyle(fontSize: 14, color: Color(0xFF333333))),
                               const SizedBox(height: 2),
-                              Text('Preço: $price', style: const TextStyle(fontSize: 14, color: Color(0xFF333333))),
+                              Text('Preço: ${item.price}', style: const TextStyle(fontSize: 14, color: Color(0xFF333333))),
                             ],
                           ),
                           const SizedBox(height: 8),
                           Align(
                             alignment: Alignment.centerRight,
                             child: Text(
-                              'Subtotal: $subtotal', 
+                              'Subtotal: $subTotal', 
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold, 
                                 fontSize: 14, 
@@ -608,7 +621,7 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'TOTAL: ${order['value'] ?? 'R\$ 0,00'}',
+                    'TOTAL: ${order.totalValue ?? 'R\$ 0,00'}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold, 
                       fontSize: 16, 
@@ -630,12 +643,12 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Visualizando detalhes do pedido ${order['id']}')),
+        SnackBar(content: Text('Pedido sem detalhes')),
       );
     }
   }
 
-  void _showDeleteDialog(Map<String, dynamic> order) {
+  void _showDeleteDialog(Order order) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -658,11 +671,10 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
             child: const Text('CANCELAR', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           TextButton(
-            onPressed: () async {
+            onPressed: () async 
+            {
               Navigator.pop(context);
-              
-              final realOrder = order['order'] as Order;
-              await _orderController.deleteOrder(realOrder.orderDate, realOrder.description);
+              await _orderController.deleteOrder(order);
   
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(

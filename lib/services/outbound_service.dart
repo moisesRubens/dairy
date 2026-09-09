@@ -12,10 +12,6 @@ class OutboundService {
   final dao = ProductDao();
   static ValueNotifier<List<Product>> saleProductsNotifier = ValueNotifier<List<Product>>([]);
   static List<Product> get saleProducts => saleProductsNotifier.value;
-
-  // 🔥 NOTIFIER PARA TODOS OS PONTOS DE VENDA
-  static ValueNotifier<List<Map<String, dynamic>>> allSalePointsNotifier = 
-      ValueNotifier<List<Map<String, dynamic>>>([]);
   
   // 🔥 NOTIFIER PARA O PONTO SELECIONADO (atual)
   static ValueNotifier<List<Outbound>> outboundsNotifier = ValueNotifier<List<Outbound>>([]);
@@ -24,25 +20,27 @@ class OutboundService {
   static ValueNotifier<int> totalItems = ValueNotifier<int>(0);
 
   
-  void _processOutboundsResponse(List<dynamic> data) {
+  void _processOutboundsResponse(List<dynamic> data, ValueNotifier<List<Map<String, dynamic>>> salesPoints) 
+  {
     final List<Map<String, dynamic>> allPoints = [];
     
     for (var item in data) {
       final name = item['sale_point_name'] ?? 'Ponto de Venda';
       final outboundsJson = item['outbounds'] ?? [];
       
-      // 🔥 CONVERTE CADA ITEM PARA OUTBOUND
+      
       final List<Outbound> outboundList = [];
-      for (var json in outboundsJson) {
+      for (var json in outboundsJson) 
+      {
         outboundList.add(Outbound.fromMap(json));
       }
       
-      // 🔥 CALCULA O TOTAL E A PORCENTAGEM GERAL
       double totalValue = 0.0;
       double totalTaken = 0.0;
       double totalSold = 0.0;
       
-      for (var outbound in outboundList) {
+      for (var outbound in outboundList) 
+      {
         totalValue += outbound.totalValue;
         totalTaken += outbound.takenQuantity;
         totalSold += outbound.soldQuantity;
@@ -65,7 +63,7 @@ class OutboundService {
       });
     }
     
-    allSalePointsNotifier.value = allPoints;
+    salesPoints.value = allPoints;
     
     if (allPoints.isNotEmpty) {
       final firstPoint = allPoints[0];
@@ -80,20 +78,20 @@ class OutboundService {
     }
   }
 
-  // ============================================================
-  // 🔥 CARREGAR TODOS OS OUTBOUNDS DO DIA
-  // ============================================================
-  Future<void> loadAllOutbounds() async {
-    try {
+
+  Future<void> loadAllOutbounds(ValueNotifier<List<Map<String, dynamic>>> salesPoints) async 
+  {
+    try 
+    {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('access_token');
 
-      if (token == null) {
+      if (token == null) 
+      {
         debugPrint("❌ Token não encontrado");
         return;
       }
-
-      // Data atual
+      
       final dateParam = DateTime.now().toIso8601String().split('T')[0];
 
       final url = Uri.parse(
@@ -118,18 +116,22 @@ class OutboundService {
 
       debugPrint('📡 Status: ${response.statusCode}');
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200) 
+      {
         final List<dynamic> data = jsonDecode(response.body);
-        _processOutboundsResponse(data);
-        debugPrint('📋 ${allSalePointsNotifier.value.length} pontos de venda carregados');
-      } else {
+        _processOutboundsResponse(data, salesPoints);
+      } 
+      else 
+      {
         debugPrint('❌ Erro ao buscar outbounds: ${response.statusCode} - ${response.body}');
-        allSalePointsNotifier.value = [];
+        salesPoints.value = [];
         outboundsNotifier.value = [];
       }
-    } catch (e) {
+    } 
+    catch (e) 
+    {
       debugPrint('❌ Erro ao carregar outbounds: $e');
-      allSalePointsNotifier.value = [];
+      salesPoints.value = [];
       outboundsNotifier.value = [];
     }
   }
@@ -181,11 +183,8 @@ class OutboundService {
     }
   }
 
-  // ============================================================
-  // 🔥 SELECIONAR UM PONTO DE VENDA ESPECÍFICO
-  // ============================================================
-  static void selectSalePoint(int index) {
-    final allPoints = allSalePointsNotifier.value;
+  static void selectSalePoint(int index, ValueNotifier<List<Map<String, dynamic>>> salesPoints) {
+    final allPoints = salesPoints.value;
     if (index >= 0 && index < allPoints.length) {
       final point = allPoints[index];
       salePointName.value = point['name'] as String;
@@ -210,10 +209,11 @@ class OutboundService {
   // ============================================================
   // 🔥 MÉTODO ESTÁTICO PARA RECARREGAR (BOTTOM NAVIGATION)
   // ============================================================
-  static Future<void> refreshOutbounds() async {
+  static Future<void> refreshOutbounds(ValueNotifier<List<Map<String, dynamic>>> salesPoints) async 
+  {
     try {
       final service = OutboundService();
-      await service.loadAllOutbounds();
+      await service.loadAllOutbounds(salesPoints);
     } catch (e) {
       debugPrint('❌ Erro ao recarregar outbounds: $e');
     }
@@ -233,7 +233,8 @@ class OutboundService {
     }
   }
   
-  Future<bool> createOutbound(List<Product>? products, double quantity, String? obs) async {
+  Future<bool> createOutbound(List<Product>? products, double quantity, String? obs, ValueNotifier<List<Map<String, dynamic>>> salesPoints) async 
+  {
     if(products == null) return false;
 
     final prefs = await SharedPreferences.getInstance();
@@ -284,7 +285,7 @@ class OutboundService {
         }
 
         await refreshProducts();
-        await loadAllOutbounds();
+        await loadAllOutbounds(salesPoints);
 
         return true;
       } 
@@ -338,13 +339,14 @@ class OutboundService {
   // ============================================================
   // 🔥 LIMPAR HISTÓRICO
   // ============================================================
-  static Future<void> clearLocalHistory() async {
+  static Future<void> clearLocalHistory(ValueNotifier<List<Map<String, dynamic>>> salesPoints) async 
+  {
     try {
       final dao = ProductDao();
       await dao.deleteAll();
       saleProductsNotifier.value = [];
       outboundsNotifier.value = [];
-      allSalePointsNotifier.value = [];
+      salesPoints.value = [];
       print('🗑️ Histórico de retiradas limpo');
     } catch (e) {
       print('❌ Erro ao limpar histórico: $e');
@@ -371,10 +373,11 @@ class OutboundService {
   // ============================================================
   // 🔥 RECARREGAR TODOS OS DADOS (PRODUTOS + OUTBOUNDS)
   // ============================================================
-  static Future<void> refreshAll() async {
+  static Future<void> refreshAll(ValueNotifier<List<Map<String, dynamic>>> salesPoints) async 
+  {
     try {
       await refreshProducts();
-      await refreshOutbounds();
+      await refreshOutbounds(salesPoints);
       print('🔄 Todos os dados recarregados');
     } catch (e) {
       print('❌ Erro ao recarregar todos os dados: $e');

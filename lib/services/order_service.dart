@@ -6,8 +6,7 @@ import '../config/api_config.dart';
 import '../domain/product.dart';
 import '../database/product_dao.dart';
 import '../database/order_dao.dart';
-import '../domain/order.dart';
-import '../domain/order_item.dart';
+import '../domain/order2.dart';
 
 class OrderService {
   
@@ -90,31 +89,20 @@ class OrderService {
     }
   }
 
-  Future<void> _saveOrderLocally(List<Product> products, String description, double totalValue) async {
-  try {
-    final orderItems = products.map((product) 
-    {
-      Map<String, dynamic> map = product.toJson();
-      return OrderItem(
-        productId: product.productId ?? 0,
-        productName: product.name ?? "",
-        itemPrice: product.price ?? 0.0,
-        amount: map['amount'] ?? 0,
-        kg: map['kg'] ?? 0.0,
-        liters: map['liters'] ?? 0.0,
-      );
-    }).toList();
-
+  Future<void> _saveOrderLocally(List<Product> products, String description, double totalValue) async 
+  {
+  try 
+  {
     final order = Order(
       description: description.isNotEmpty ? description : 'Pedido ${DateTime.now().toIso8601String()}',
-      status: true,
+      status: Status.pago,
       totalValue: totalValue,
-      orderDate: DateTime.now().toIso8601String(),
-      items: orderItems,
+      dateTime: DateTime.now(),
+      products: products,
     );
 
     await _orderDao.saveOrder(order);
-    debugPrint('✅ Pedido salvo localmente com ${order.items.length} itens');
+    debugPrint('✅ Pedido salvo localmente com ${order.products.length} itens');
   } catch (e) {
     debugPrint('❌ Erro ao salvar pedido localmente: $e');
   }

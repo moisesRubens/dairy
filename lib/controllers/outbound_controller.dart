@@ -15,9 +15,9 @@ class OutboundController extends ChangeNotifier
   OutboundController({OutboundService? outboundService}) : _outboundService = outboundService ?? OutboundService();
   
 
-  Future<bool> createOutboundController(List<Product> products, double quantity, String obs) async 
+  Future<bool> createOutboundController(List<Product> products, double quantity, String obs, ValueNotifier<List<Map<String, dynamic>>> salesPoints) async 
   {
-    return await _outboundService.createOutbound(products, quantity, obs);
+    return await _outboundService.createOutbound(products, quantity, obs, salesPoints);
   }
 
   Future<void> refreshOutbounds() async

@@ -259,11 +259,11 @@ class InventoryPageState extends State<InventoryPage> {
                         style: const TextStyle(
                           color: Color(0xFF2E7D32),
                           fontWeight: FontWeight.bold,
-                          fontSize: 15,
+                          fontSize: 14,
                         ),
                       ),
                       Text(
-                        '$unit ${_formatQuantity(quantity)}',
+                        '${_formatQuantity(quantity)}  ${product.getUnitSymbol}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -405,7 +405,7 @@ class InventoryPageState extends State<InventoryPage> {
       return _selectedProductIds.contains(product.id);
     }).toList();
     
-    final bool success = await _outboundContrller.createOutboundController(productsToRetire, quantity, "");
+    final bool success = await _outboundContrller.createOutboundController(productsToRetire, quantity, "", _salePointController.salesPoints);
     if (success) 
     {
       _showSnackBar(context, 'Saída de ${_selectedProductIds.length} item(s) registrado(s) com sucesso!',

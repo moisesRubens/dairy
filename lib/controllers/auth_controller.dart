@@ -6,17 +6,25 @@ class AuthController {
 
   AuthController() : _authService = AuthService();
 
-  // Login
-  Future<SalePoint?> login(String username, String password) async {
-    try {
-      return await _authService.login(username, password);
-    } catch (e) {
+  Future<SalePoint?> login(String username, String password) async 
+  {
+    try 
+    {
+      bool result = await _authService.login(username, password);
+      if(result)
+      {
+        return await _authService.getCurrentSalePoint();
+      }
+      return null;
+    } 
+    catch (e) 
+    {
       throw Exception('Erro ao fazer login: $e');
     }
   }
 
-  // Logout
-  Future<void> logout() async {
+  Future<void> logout() async 
+  {
     await _authService.logout();
   }
 
