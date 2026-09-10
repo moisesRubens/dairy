@@ -148,3 +148,30 @@ class _InfoChip extends StatelessWidget {
     );
   }
 }
+
+class SetInput extends StatefulWidget
+{
+  final String label;
+  final TextEditingController controller;
+  
+  const SetInput({super.key, required this.label, required this.controller});
+
+  @override
+  State<SetInput> createState() => _SetInputState();
+}
+
+class _SetInputState extends State<SetInput>
+{
+
+  @override
+  Widget build(BuildContext context)
+  {
+    return TextField(
+      controller: widget.controller,
+      decoration: InputDecoration(
+        labelText: "${widget.label} ",
+        border: OutlineInputBorder(),
+      ),
+    );
+  }
+}

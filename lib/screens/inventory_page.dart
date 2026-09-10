@@ -1,3 +1,4 @@
+import '../widgets/product_card.dart';
 import 'package:dairy/controllers/outbound_controller.dart';
 import 'package:dairy/controllers/product_controller.dart';
 import 'package:dairy/controllers/sale_point_controller.dart';
@@ -58,7 +59,10 @@ class InventoryPageState extends State<InventoryPage> {
       barrierDismissible: false,
       builder: (context) => const AddProductDialog(),
     );
-    if(product == null) return;
+    if(product == null) 
+    {
+      return;
+    }
     final bool success = await _productController.add(product);
     if(success)
     {
@@ -468,9 +472,7 @@ class InventoryPageState extends State<InventoryPage> {
   }
 }
 
-// ============================================================
-// DIÁLOGO DE ADIÇÃO DE PRODUTO
-// ============================================================
+
 class AddProductDialog extends StatefulWidget {
   const AddProductDialog({super.key});
 
@@ -478,24 +480,28 @@ class AddProductDialog extends StatefulWidget {
   State<AddProductDialog> createState() => _AddProductDialogState();
 }
 
-class _AddProductDialogState extends State<AddProductDialog> {
+class _AddProductDialogState extends State<AddProductDialog> 
+{
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
+  Unit? _selectedUnit = Unit.amount;
   bool _isLoading = false;
 
   @override
-  void dispose() {
+  void dispose() 
+  {
     _nameController.dispose();
     _priceController.dispose();
     _quantityController.dispose();
     super.dispose();
   }
 
-  Product? _saveProduct(BuildContext context) {
-    // 1. Validações
+  Product? _saveProduct(BuildContext context) 
+  {
     final name = _nameController.text.trim();
-    if (name.isEmpty) {
+    if (name.isEmpty) 
+    {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('O nome é obrigatório.')),
       );
@@ -504,7 +510,8 @@ class _AddProductDialogState extends State<AddProductDialog> {
 
     final priceStr = _priceController.text.trim().replaceAll(',', '.');
     final double? price = double.tryParse(priceStr);
-    if (price == null || price <= 0) {
+    if (price == null || price <= 0) 
+    {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Preço inválido.')),
       );
@@ -514,15 +521,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
     final double quantity = double.parse(_quantityController.text.trim().replaceAll(',', '.'));
     final Unit unitType = Unit.amount;  
 
-    if (false) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preencha pelo menos uma unidade (Amount, Kg ou Liters).')),
-      );
-      return null;
-    }
-
     final newProduct = Product(
-      id: null,
       name: name,
       price: price,
       quantity: quantity,
@@ -534,7 +533,10 @@ class _AddProductDialogState extends State<AddProductDialog> {
   void _handleSave(BuildContext context)
   {
     final Product? product = _saveProduct(context);
-    if(product == null) return;
+    if(product == null) 
+    {
+      return;
+    }
     Navigator.pop(context, product);
   }
 
@@ -546,44 +548,27 @@ class _AddProductDialogState extends State<AddProductDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nome *',
-                border: OutlineInputBorder(),
-              ),
-            ),
+            SetInput(label: 'Nome', controller: _nameController),
             const SizedBox(height: 12),
-            TextField(
-              controller: _priceController,
-              decoration: const InputDecoration(
-                labelText: 'Preço * (ex: 42.90)',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-            ),
+            SetInput(label: 'Preço', controller: _priceController),
             const SizedBox(height: 12),
-            TextField(
-              controller: _quantityController,
-              decoration: const InputDecoration(
-                labelText: 'Quantidade',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-            ),
+            SetInput(label: 'Quantidade', controller: _quantityController),
             const SizedBox(height: 12),
-            TextField(
-              controller: null,
+            DropdownButtonFormField<Unit>(
+              value: _selectedUnit,
               decoration: const InputDecoration(
                 labelText: 'TIPO DA UNIDADE',
                 border: OutlineInputBorder(),
               ),
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '* Campos obrigatórios',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              items: Unit.values
+                  .map((u) => DropdownMenuItem(
+                        value: u,
+                        child: Text(u.label),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                setState(() => _selectedUnit = value);
+              },
             ),
           ],
         ),
@@ -596,7 +581,7 @@ class _AddProductDialogState extends State<AddProductDialog> {
         ElevatedButton(
           onPressed: () 
           {
-            _isLoading ? null : _handleSave;
+            _isLoading ? null : _handleSave(context);
           },
           child: _isLoading
               ? const SizedBox(
@@ -607,6 +592,41 @@ class _AddProductDialogState extends State<AddProductDialog> {
               : const Text('Salvar'),
         ),
       ],
+    );
+  }
+}
+
+class CreationProductCard extends StatefulWidget
+{
+  const CreationProductCard({super.key});
+
+  @override
+  State<CreationProductCard> createState() => _CreationProductCardState();
+}
+
+class _CreationProductCardState extends State<CreationProductCard>
+{
+  final _nameController = TextEditingController();
+  final _priceController= TextEditingController();
+  final _quantityController= TextEditingController();
+
+  @override
+  Widget build(BuildContext context)
+  {
+    return Container(
+      child: Column(
+        children: [
+          Text("Criação de produto", style: TextStyle(fontSize: 13, color: Colors.red)),
+          const SizedBox(height: 12),
+          SetInput(label: 'Nome', controller: _nameController),
+          const SizedBox(height: 12),
+          SetInput(label: 'Preço', controller: _priceController),
+          const SizedBox(height: 12),
+          SetInput(label: 'Quantidade', controller: _quantityController),
+          const SizedBox(height: 12),
+          SetInput(label: 'Quantidade', controller: _quantityController)
+        ],
+      ),
     );
   }
 }

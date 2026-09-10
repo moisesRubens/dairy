@@ -79,7 +79,8 @@ class ProductService {
     }
   }
 
-  Future<bool> createProduct(Product product) async {
+  Future<bool> createProduct(Product product) async 
+  {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('access_token');
   
@@ -89,7 +90,7 @@ class ProductService {
   }
 
   final url = Uri.parse('${ApiConfig.baseUrl}/products/');
-  final Map<String, dynamic> body = product.toJson();
+  final List<Map<String, dynamic>> body = [product.toJson()];
 
   try 
   {
@@ -103,17 +104,22 @@ class ProductService {
       },
       body: jsonEncode(body),
     );
+    
+    if (response.statusCode == 201 || response.statusCode == 200) 
+    {
 
-    print('📡 Status: ${response.statusCode}');
-    print('📡 Resposta: ${response.body}');
+      debugPrint("DENTRO DO NUMERO DE RESPOSTA");
 
-    // 🔥 Sucesso é definido pelo status code, não pelo corpo
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      // Opcional: tenta decodificar apenas se houver corpo e se for útil
-      if (response.body.isNotEmpty) {
-        try {
+      if (response.body.isNotEmpty) 
+      {
+        debugPrint("DENTRO DO body");
+
+        try 
+        {
+          debugPrint("DENTRO DO TRY");
           final decoded = jsonDecode(response.body);
           if (decoded is List && decoded.isNotEmpty) {
+            debugPrint("DENTRO DO DECODE");
             // Aqui você pode extrair o produto criado se quiser
             final newProduct = Product.fromJson(decoded.first);
             // Salvar localmente se desejar
@@ -124,6 +130,7 @@ class ProductService {
       }
       return true;
     } else {
+      debugPrint("NAO DEU A RESPOSTA CORRETA");
       return false;
     }
   } catch (e) {

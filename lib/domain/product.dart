@@ -112,7 +112,8 @@ class Product {
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson() 
+  {
     Map<String, dynamic> map = {
       'name': name,
       'price': price,
