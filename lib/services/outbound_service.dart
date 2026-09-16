@@ -10,48 +10,50 @@ import 'package:intl/intl.dart';
 
 class OutboundService {
   final dao = ProductDao();
-  static ValueNotifier<List<Product>> saleProductsNotifier = ValueNotifier<List<Product>>([]);
+  static ValueNotifier<List<Product>> saleProductsNotifier =
+      ValueNotifier<List<Product>>([]);
   static List<Product> get saleProducts => saleProductsNotifier.value;
-  
+
   // 🔥 NOTIFIER PARA O PONTO SELECIONADO (atual)
-  static ValueNotifier<List<Outbound>> outboundsNotifier = ValueNotifier<List<Outbound>>([]);
-  static ValueNotifier<String> salePointName = ValueNotifier<String>('Ponto de Venda');
+  static ValueNotifier<List<Outbound>> outboundsNotifier =
+      ValueNotifier<List<Outbound>>([]);
+  static ValueNotifier<String> salePointName = ValueNotifier<String>(
+    'Ponto de Venda',
+  );
   static ValueNotifier<double> totalSold = ValueNotifier<double>(0.0);
   static ValueNotifier<int> totalItems = ValueNotifier<int>(0);
 
-  
-  void _processOutboundsResponse(List<dynamic> data, ValueNotifier<List<Map<String, dynamic>>> salesPoints) 
-  {
+  void _processOutboundsResponse(
+    List<dynamic> data,
+    ValueNotifier<List<Map<String, dynamic>>> salesPoints,
+  ) {
     final List<Map<String, dynamic>> allPoints = [];
-    
+
     for (var item in data) {
       final name = item['sale_point_name'] ?? 'Ponto de Venda';
       final outboundsJson = item['outbounds'] ?? [];
-      
-      
+
       final List<Outbound> outboundList = [];
-      for (var json in outboundsJson) 
-      {
+      for (var json in outboundsJson) {
         outboundList.add(Outbound.fromMap(json));
       }
-      
+
       double totalValue = 0.0;
       double totalTaken = 0.0;
       double totalSold = 0.0;
-      
-      for (var outbound in outboundList) 
-      {
+
+      for (var outbound in outboundList) {
         totalValue += outbound.totalValue;
         totalTaken += outbound.takenQuantity;
         totalSold += outbound.soldQuantity;
       }
-      
+
       // 🔥 PORCENTAGEM GERAL DE VENDAS
       double overallPercentage = 0.0;
       if (totalTaken > 0) {
         overallPercentage = (totalSold / totalTaken) * 100;
       }
-      
+
       allPoints.add({
         'name': name,
         'outbounds': outboundList,
@@ -62,9 +64,9 @@ class OutboundService {
         'overallPercentage': overallPercentage,
       });
     }
-    
+
     salesPoints.value = allPoints;
-    
+
     if (allPoints.isNotEmpty) {
       final firstPoint = allPoints[0];
       salePointName.value = firstPoint['name'] as String;
@@ -78,58 +80,53 @@ class OutboundService {
     }
   }
 
-
-  Future<void> loadAllOutbounds(ValueNotifier<List<Map<String, dynamic>>> salesPoints) async 
-  {
-    try 
-    {
+  Future<void> loadAllOutbounds(
+    ValueNotifier<List<Map<String, dynamic>>> salesPoints,
+  ) async {
+    try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('access_token');
 
-      if (token == null) 
-      {
+      if (token == null) {
         debugPrint("❌ Token não encontrado");
         return;
       }
-      
+
       final dateParam = DateTime.now().toIso8601String().split('T')[0];
 
-      final url = Uri.parse(
-        '${ApiConfig.baseUrl}/outbounds/?date=$dateParam'
-      );
+      final url = Uri.parse('${ApiConfig.baseUrl}/outbounds/?date=$dateParam');
 
       debugPrint('🌐 Buscando outbounds: $url');
 
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw Exception('Timeout ao buscar outbounds');
-        },
-      );
+      final response = await http
+          .get(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw Exception('Timeout ao buscar outbounds');
+            },
+          );
 
       debugPrint('📡 Status: ${response.statusCode}');
 
-      if (response.statusCode == 200) 
-      {
+      if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         _processOutboundsResponse(data, salesPoints);
-      } 
-      else 
-      {
-        debugPrint('❌ Erro ao buscar outbounds: ${response.statusCode} - ${response.body}');
+      } else {
+        debugPrint(
+          '❌ Erro ao buscar outbounds: ${response.statusCode} - ${response.body}',
+        );
         salesPoints.value = [];
         outboundsNotifier.value = [];
       }
-    } 
-    catch (e) 
-    {
+    } catch (e) {
       debugPrint('❌ Erro ao carregar outbounds: $e');
       salesPoints.value = [];
       outboundsNotifier.value = [];
@@ -146,12 +143,12 @@ class OutboundService {
         return null;
       }
 
-      DateTime dateTime = (date != null) ? DateTime.parse(date!) : DateTime.now();
+      DateTime dateTime = (date != null)
+          ? DateTime.parse(date!)
+          : DateTime.now();
       String dateFormat = DateFormat("dd/MM/yyyy").format(dateTime);
-      
-      final url = Uri.parse(
-        '${ApiConfig.baseUrl}/outbounds/?date=$dateFormat'
-      );
+
+      final url = Uri.parse('${ApiConfig.baseUrl}/outbounds/?date=$dateFormat');
 
       final response = await http.get(
         url,
@@ -162,28 +159,25 @@ class OutboundService {
         },
       );
 
-      if (response.statusCode == 200) 
-      {
+      if (response.statusCode == 200) {
         final List<Map<String, dynamic>> data = jsonDecode(response.body);
-        final List<Product> outbounds = data.map((d)
-        {
+        final List<Product> outbounds = data.map((d) {
           return Product.fromMap(d);
         }).toList();
         return outbounds;
-      } 
-      else 
-      {
+      } else {
         debugPrint('❌ Erro ao buscar outbounds: ${response.statusCode}');
         return null;
       }
-    } 
-    catch (e) 
-    {
+    } catch (e) {
       debugPrint('❌ Erro ao carregar outbounds por data: $e');
     }
   }
 
-  static void selectSalePoint(int index, ValueNotifier<List<Map<String, dynamic>>> salesPoints) {
+  static void selectSalePoint(
+    int index,
+    ValueNotifier<List<Map<String, dynamic>>> salesPoints,
+  ) {
     final allPoints = salesPoints.value;
     if (index >= 0 && index < allPoints.length) {
       final point = allPoints[index];
@@ -209,8 +203,9 @@ class OutboundService {
   // ============================================================
   // 🔥 MÉTODO ESTÁTICO PARA RECARREGAR (BOTTOM NAVIGATION)
   // ============================================================
-  static Future<void> refreshOutbounds(ValueNotifier<List<Map<String, dynamic>>> salesPoints) async 
-  {
+  static Future<void> refreshOutbounds(
+    ValueNotifier<List<Map<String, dynamic>>> salesPoints,
+  ) async {
     try {
       final service = OutboundService();
       await service.loadAllOutbounds(salesPoints);
@@ -232,31 +227,40 @@ class OutboundService {
       saleProductsNotifier.value = [];
     }
   }
-  
-  Future<bool> createOutbound(List<Product>? products, double quantity, String? obs, ValueNotifier<List<Map<String, dynamic>>> salesPoints) async 
-  {
-    if(products == null) return false;
+
+  Future<bool> createOutbound(
+    ValueNotifier<List<Product>> stockProducts,
+    List<Product>? products,
+    double quantity,
+    String? obs,
+  ) async {
+    if (products == null) {
+      return false;
+    }
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
-    final salePointId = prefs.getInt('sale_point_id'); 
+    final salePointId = prefs.getInt('sale_point_id');
 
-    if (token == null || salePointId == null) return false;
+    if (token == null || salePointId == null) {
+      return false;
+    }
+
     final url = Uri.parse('${ApiConfig.baseUrl}/auth/$salePointId/outbounds');
+    print('🟡 [5] URL: $url');
 
-    final List<Map<String, dynamic>> produtosJson = products.map((entry) 
-    {
-      return entry.toJson(); 
+    final List<Map<String, dynamic>> produtosJson = products.map((entry) {
+      return entry.toJson();
     }).toList();
 
-    final Map<String, dynamic> requestBody = 
-    {
+    print('🟡 [6] Payload: $produtosJson');
+
+    final Map<String, dynamic> requestBody = {
       "produtos": produtosJson,
-      "observacao": obs ?? "", 
+      "observacao": obs ?? "",
     };
 
-    try 
-    {
+    try {
       final response = await http.post(
         url,
         headers: {
@@ -267,37 +271,33 @@ class OutboundService {
         body: json.encode(requestBody),
       );
 
-      if (response.statusCode == 201 || response.statusCode == 200) 
-      {
-        for (final entry in products) 
-        {
+      print('🟡 [7] Status HTTP: ${response.statusCode}');
+      print('🟡 [8] Body: ${response.body}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        for (final entry in products) {
           final Product? localProduct = await dao.getProduct2(
             productId: entry.productId,
           );
-          if (localProduct != null) {
-            localProduct.setQuantity(quantity);
-            await dao.updateQuantity2(localProduct);
+          if (localProduct != null) 
+          {
+            double newQuantity = localProduct.quantity - quantity;
+            localProduct.setQuantity(newQuantity);
+            await dao.saveProduct(localProduct);
           } 
           else 
           {
             await dao.addProduct(entry);
           }
         }
-
-        await refreshProducts();
-        await loadAllOutbounds(salesPoints);
-
+        products.map((p) => stockProducts.value = [...stockProducts.value, p]);
         return true;
-      } 
-      else 
-      {
-        debugPrint("❌ Erro na API: ${response.statusCode} - ${response.body}");
+      } else {
+        print('🔴 [10] API rejeitou com ${response.statusCode}');
         return false;
       }
-    } 
-    catch (e) 
-    {
-      debugPrint("❌ Erro de conexão ao criar saída: $e");
+    } catch (e) {
+      print('🔴 [11] Exceção: $e');
       return false;
     }
   }
@@ -305,32 +305,28 @@ class OutboundService {
   // ============================================================
   // 🔥 SALVAR OUTBOUND NO BANCO LOCAL
   // ============================================================
-  static Future<void> _saveOutboundToLocal(Map<Product, double> outboundsQuantity) async {
+  static Future<void> _saveOutboundToLocal(
+    Map<Product, double> outboundsQuantity,
+  ) async {
     try {
       final dao = ProductDao();
-      
+
       print('📝 SALVANDO RETIRADA NO BANCO:');
-      
-      for (var entry in outboundsQuantity.entries)
-      {
+
+      for (var entry in outboundsQuantity.entries) {
         final product = entry.key;
         final double quantity = entry.value;
 
         Product? p = await dao.getProductById(product.productId!);
-        if (p != null) 
-        {
+        if (p != null) {
           p.setQuantity(quantity);
           dao.updateProduct(p);
-        } 
-        else 
-        {
+        } else {
           product.setQuantity(quantity);
           await dao.addProduct(product);
         }
       }
-    } 
-    catch (e) 
-    {
+    } catch (e) {
       print('❌ Erro ao salvar retirada no banco: $e');
       throw e;
     }
@@ -339,8 +335,9 @@ class OutboundService {
   // ============================================================
   // 🔥 LIMPAR HISTÓRICO
   // ============================================================
-  static Future<void> clearLocalHistory(ValueNotifier<List<Map<String, dynamic>>> salesPoints) async 
-  {
+  static Future<void> clearLocalHistory(
+    ValueNotifier<List<Map<String, dynamic>>> salesPoints,
+  ) async {
     try {
       final dao = ProductDao();
       await dao.deleteAll();
@@ -352,8 +349,7 @@ class OutboundService {
       print('❌ Erro ao limpar histórico: $e');
     }
   }
-  
-  
+
   static Future<void> refreshProducts() async {
     try {
       print("DENTRO DE REFRESH PRODUCTS");
@@ -373,8 +369,9 @@ class OutboundService {
   // ============================================================
   // 🔥 RECARREGAR TODOS OS DADOS (PRODUTOS + OUTBOUNDS)
   // ============================================================
-  static Future<void> refreshAll(ValueNotifier<List<Map<String, dynamic>>> salesPoints) async 
-  {
+  static Future<void> refreshAll(
+    ValueNotifier<List<Map<String, dynamic>>> salesPoints,
+  ) async {
     try {
       await refreshProducts();
       await refreshOutbounds(salesPoints);

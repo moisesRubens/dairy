@@ -6,7 +6,7 @@ enum Unit
 
   String get label => switch(this)
   {
-    Unit.amount => 'un',
+    Unit.amount => 'amount',
     Unit.kg => 'kg',
     Unit.liters => 'L'
   };

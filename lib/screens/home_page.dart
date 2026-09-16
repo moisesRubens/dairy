@@ -54,7 +54,8 @@ class HomePageState extends State<HomePage> {
     _scrollController.jumpTo(0);
   }
 
-  Future<void> _loadProducts() async {
+  Future<void> _loadProducts() async 
+  {
     setState(() => _isLoading = true);
     await OutboundService.refreshProducts();
     await _loadDailyRevenue();
@@ -341,7 +342,7 @@ class HomePageState extends State<HomePage> {
 
   Widget _buildProductTable() {
     return ValueListenableBuilder<List<Product>>(
-      valueListenable: OutboundService.saleProductsNotifier,
+      valueListenable: _salePointController.products,
       builder: (context, produtosAtualizados, child) {
         print('🏠 HomePage builder - ${produtosAtualizados.length} produtos');
         return Container(

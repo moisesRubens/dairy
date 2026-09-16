@@ -7,6 +7,63 @@ import 'database_provider.dart';
 class ProductDao {
   final DatabaseProvider _database = DatabaseProvider();
 
+    /// Salva um produto no banco.
+  /// - Se já existe (mesmo `produtoId`), atualiza.
+  /// - Se não existe, insere.
+  /// Retorna o `id` local (SQLite) do produto.
+  Future<int> saveProduct(Product product) async {
+    final db = await DB.instance.database;
+
+    final map = <String, dynamic>{
+      'produtoId': product.productId, // 👈 ID do backend
+      'name': product.name,
+      'price': product.price,
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+
+    // 👇 Zera as três colunas de unidade e seta só a correta
+    map['amount'] = null;
+    map['kg'] = null;
+    map['liters'] = null;
+
+    switch (product.unitType) {
+      case Unit.amount:
+        map['amount'] = product.quantity;
+        break;
+      case Unit.kg:
+        map['kg'] = product.quantity;
+        break;
+      case Unit.liters:
+        map['liters'] = product.quantity;
+        break;
+    }
+
+    // Verifica se já existe
+    final existing = await db.query(
+      'produtos',
+      where: 'produtoId = ?',
+      whereArgs: [product.productId],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      final localId = existing.first['id'] as int;
+      await db.update(
+        'produtos',
+        map,
+        where: 'id = ?',
+        whereArgs: [localId],
+      );
+      print('🔄 Produto "${product.name}" atualizado (id local: $localId)');
+      return localId;
+    } else {
+      final newId = await db.insert('produtos', map);
+      print('✅ Produto "${product.name}" inserido (id local: $newId)');
+      return newId;
+    }
+  }
+
+
   Future<List<Product>> getAllProducts2 () async {
     Database db = await _database.db;
 
@@ -14,18 +71,14 @@ class ProductDao {
     final startOfDay = DateTime(today.year, today.month, today.day).toIso8601String();
     final endOfDay = DateTime(today.year, today.month, today.day, 23, 59, 59, 999).toIso8601String();
 
-    await db.rawDelete(
-      "delete from products where date < ? or date > ?",
-      [startOfDay, endOfDay],
-    );
-
     List<Map<String, dynamic>> maps = await db.rawQuery(
       "select * from products where date >= ? and date <= ? order by date desc",
       [startOfDay, endOfDay],
     );
     List<Product> productsList = [];
 
-    for (Map<String, dynamic> m in maps) {
+    for (Map<String, dynamic> m in maps) 
+    {
       productsList.add(Product.fromMap(m));
     }
     return productsList;
@@ -42,8 +95,10 @@ class ProductDao {
     await db.rawDelete("delete from products");
   }
 
-  Future<Product?> getProduct2({int? productId, int? id}) async {
-    if (id == null && productId == null) {
+  Future<Product?> getProduct2({int? productId, int? id}) async 
+  {
+    if (id == null && productId == null) 
+    {
         throw ArgumentError('Informe ao menos id ou productId');
     }
     Database db = await _database.db;
@@ -55,7 +110,8 @@ class ProductDao {
        ?[id] :[productId],
        limit: 1);
 
-    if(result.isEmpty) {
+    if(result.isEmpty) 
+    {
       return null;
     } 
     return Product.fromMap(result.first);

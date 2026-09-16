@@ -69,9 +69,9 @@ class DatabaseProvider {
           unit TEXT NOT NULL,
           ${Product.priceColumn} REAL NOT NULL,
           CONSTRAINT pk_order_product PRIMARY KEY (${Order.orderIdColumn}, ${Product.productIdColumn}),
-          FOREIGN KEY ${Order.orderIdColumn} REFERENCES orders(${Order.idColumn})
+          FOREIGN KEY (${Order.orderIdColumn}) REFERENCES orders(${Order.idColumn})
             ON DELETE CASCADE,
-          FOREIGN KEY ${Product.productIdColumn} REFERENCES products(${Product.idColumn})
+          FOREIGN KEY (${Product.productIdColumn}) REFERENCES products(${Product.idColumn})
             ON DELETE SET NULL
         );
       ''');
@@ -106,9 +106,9 @@ class DatabaseProvider {
           unit TEXT NOT NULL,
           ${Product.priceColumn} REAL NOT NULL,
           CONSTRAINT pk_order_product PRIMARY KEY (${Order.orderIdColumn}, ${Product.productIdColumn}),
-          FOREIGN KEY ${Order.orderIdColumn} REFERENCES orders(${Order.idColumn})
+          FOREIGN KEY (${Order.orderIdColumn}) REFERENCES orders(${Order.idColumn})
             ON DELETE CASCADE,
-          FOREIGN KEY ${Product.productIdColumn} REFERENCES products(${Product.idColumn})
+          FOREIGN KEY (${Product.productIdColumn}) REFERENCES products(${Product.idColumn})
             ON DELETE SET NULL
           );
         ''');

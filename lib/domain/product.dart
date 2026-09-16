@@ -37,9 +37,10 @@ class Product {
   }) : date = date ?? DateTime.now(), _unitType = unitType, _quantity = quantity;
 
   @override
-  String toString() {
-    return 'Product(id: $id, productId: $productId, unit: $_unitType)';
-  }
+String toString() {
+  return 'Product(id: $id, productId: $productId, name: $name, '
+         'price: $price, quantity: $_quantity, unit: $_unitType, date: $date)';
+}
 
   Unit _setUnitTypeFromDatabase(Map<String, dynamic> map)
   { 
@@ -86,6 +87,14 @@ class Product {
     return map;
   }
 
+
+/*
+id: int
+    name: str
+    price: float
+    amount: float | None = -1
+    kg: float | None = -1
+    liters: float | None = -1*/
   factory Product.fromJson(Map<String, dynamic> json) 
   {
     if(json['amount'] != null && json['amount'] != -1)
@@ -116,10 +125,10 @@ class Product {
   {
     Map<String, dynamic> map = {
       'name': name,
-      'price': price,
-      'amount': (_unitType == Unit.amount) ? _quantity : -1,
-      'kg': (_unitType == Unit.kg) ? _quantity : -1,
-      'liters': (_unitType == Unit.liters) ? _quantity : -1,
+      'price': price,      
+      'amount': (unitType.label == "amount") ? _quantity : -1, 
+      'kg': (unitType.label == "kg") ? _quantity : -1,  
+      'liters': (unitType.label == "liters") ? _quantity : -1,     
     };
     return map;
   }

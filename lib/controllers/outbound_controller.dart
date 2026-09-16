@@ -3,8 +3,7 @@ import 'package:dairy/domain/product.dart';
 import 'package:dairy/services/outbound_service.dart';
 import 'package:flutter/material.dart';
 
-class OutboundController extends ChangeNotifier
-{
+class OutboundController extends ChangeNotifier {
   List<Product>? _list = [];
   bool _isLoading = false;
   final OutboundService _outboundService;
@@ -12,28 +11,26 @@ class OutboundController extends ChangeNotifier
   List<Product>? get outbounds => _list;
   bool get isLoading => _isLoading;
 
-  OutboundController({OutboundService? outboundService}) : _outboundService = outboundService ?? OutboundService();
-  
+  OutboundController({OutboundService? outboundService})
+    : _outboundService = outboundService ?? OutboundService();
 
-  Future<bool> createOutboundController(List<Product> products, double quantity, String obs, ValueNotifier<List<Map<String, dynamic>>> salesPoints) async 
-  {
-    return await _outboundService.createOutbound(products, quantity, obs, salesPoints);
+  Future<bool> createOutboundController(
+    List<Product> products,
+    double quantity,
+    String obs,
+    ValueNotifier<List<Map<String, dynamic>>> salesPoints,
+  ) async {
+    return false;
   }
 
-  Future<void> refreshOutbounds() async
-  {
+  Future<void> refreshOutbounds() async {
     _isLoading = true;
     notifyListeners();
-    try 
-    {
+    try {
       _list = await _outboundService.loadOutboundsByDate(null);
-    }
-    catch (e)
-    {
+    } catch (e) {
       debugPrint("Falha ao recarregar retiradas");
-    }
-    finally
-    {
+    } finally {
       _isLoading = false;
       notifyListeners();
     }

@@ -11,14 +11,13 @@ import '../services/outbound_service.dart';
 import '../services/order_service.dart';
 import '../domain/order.dart';
 
-class SalePointController extends ChangeNotifier
-{
+class SalePointController extends ChangeNotifier {
   final ProductDao _productDao = ProductDao();
   final OrderService _orderService = OrderService();
   final OutboundService _outboundService = OutboundService();
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
   final ValueNotifier<String?> errorMessage = ValueNotifier<String?>(null);
-  
+
   final AuthService _authService;
   bool _isAdmin = false;
   int? _salePointId;
@@ -26,26 +25,31 @@ class SalePointController extends ChangeNotifier
   bool get isAdmin => _isAdmin;
   int? get salePointId => _salePointId;
 
-  final ValueNotifier<List<Map<String, dynamic>>> _salesPoints = 
+  final ValueNotifier<List<Map<String, dynamic>>> _salesPoints =
       ValueNotifier<List<Map<String, dynamic>>>([]);
+  final ValueNotifier<List<Product>> _products = ValueNotifier<List<Product>>(
+    [],
+  );
 
-  SalePointController() : _authService = AuthService()
-  {
+  SalePointController() : _authService = AuthService() {
     getSalePointId();
   }
 
   ValueNotifier<List<Map<String, dynamic>>> get salesPoints => _salesPoints;
-
-  Future<void> refreshSalesPoint() async
-  {
-    
+  ValueNotifier<List<Product>> get products => _products;
+  
+  Future<bool> createOutbound(List<Product> productsToRetire, double quantity, String? obs) async {
+    return await _outboundService.createOutbound(
+      _products,
+      productsToRetire,
+      quantity,
+      obs
+    );
   }
 
-
-  Future<void> getSalePointId() async
-  { 
+  Future<void> getSalePointId() async {
     _salePointId = await _authService.getCurrentSalePointId();
-    if(_salePointId != null) _admVerification(_salePointId!);
+    if (_salePointId != null) _admVerification(_salePointId!);
     notifyListeners();
   }
 
@@ -60,40 +64,34 @@ class SalePointController extends ChangeNotifier
       isLoading.value = false;
     }
   }
-  
-  Future<void> _admVerification(int salePointId) async 
-  {
+
+  Future<void> _admVerification(int salePointId) async {
     final url = Uri.parse('${ApiConfig.baseUrl}/auth/${salePointId}');
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
 
-    try 
-    {
+    try {
       final response = await http.get(
         url,
-        headers: 
-        {
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
       );
-      if (response.statusCode == 200) 
-      {
+      if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        
+
         final bool isAdmin = data['level'] == 1;
-        
-        debugPrint('✅ SalePoint $salePointId é admin? $isAdmin (level: ${data['level']})');
+
+        debugPrint(
+          '✅ SalePoint $salePointId é admin? $isAdmin (level: ${data['level']})',
+        );
         _isAdmin = isAdmin;
-      } 
-      else 
-      {
+      } else {
         debugPrint("❌ Erro ao verificar admin: ${response.statusCode}");
       }
-    } 
-    catch (e) 
-    {
+    } catch (e) {
       debugPrint("❌ Erro na requisição de verificação de admin: $e");
     }
   }
@@ -110,15 +108,14 @@ class SalePointController extends ChangeNotifier
     }
   }
 
-  Future<void> refreshOutbounds() async 
-  {
+  Future<void> refreshOutbounds() async {
     await OutboundService.refreshOutbounds(_salesPoints);
   }
 
   Future<bool> retornarProdutosAoEstoque() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
-    final salePointId = prefs.getInt('sale_point_id'); 
+    final salePointId = prefs.getInt('sale_point_id');
 
     if (token == null || salePointId == null) {
       debugPrint("❌ Token ou sale_point_id não encontrado");
@@ -148,9 +145,9 @@ class SalePointController extends ChangeNotifier
     } catch (e) {
       debugPrint("❌ Erro de conexão ao retornar produtos ao estoque: $e");
       return false;
-    } 
+    }
   }
-  
+
   Future<bool> fazerVenda(
     List<Product> products, {
     String description = '',
@@ -165,7 +162,7 @@ class SalePointController extends ChangeNotifier
         return false;
       }
 
-      final invalidProducts = products.where((p) { 
+      final invalidProducts = products.where((p) {
         print("PRODUTO DA VENDA: ${p}");
         return p.productId == null;
       });
@@ -220,10 +217,6 @@ class SalePointController extends ChangeNotifier
       return 0.0;
     }
   }
-
-  
-
-  
 
   // ============================================================
   // 🔥 LIMPAR RECURSOS

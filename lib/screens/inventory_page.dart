@@ -18,11 +18,9 @@ class InventoryPage extends StatefulWidget {
   State<InventoryPage> createState() => InventoryPageState();
 }
 
-class InventoryPageState extends State<InventoryPage> {
+class InventoryPageState extends State<InventoryPage> with RouteAware {
   late final ProductController _productController;
   late final SalePointController _salePointController;
-  late final OutboundController _outboundContrller;
-  
 
   int? _expandedProductId;
   final Set<int> _selectedProductIds = {};
@@ -30,28 +28,39 @@ class InventoryPageState extends State<InventoryPage> {
   final FocusNode _quantityFocusNode = FocusNode();
 
   @override
-  void initState({ProductController? productController, SalePointController? salePointController, OutboundController? outboundContrller}) 
-  {
+  void initState({
+    ProductController? productController,
+    SalePointController? salePointController,
+    OutboundController? outboundContrller,
+  }) {
     super.initState();
     _productController = productController ?? ProductController();
     _salePointController = salePointController ?? SalePointController();
-    _outboundContrller = outboundContrller ?? OutboundController();
-    _productController.refreshProducts();
-  }
-
-  void refreshProducts()
-  {
+    print("DENTRO DE INTI");
     _productController.refreshProducts();
   }
 
   @override
-  void dispose() 
-  {
+  void didPush() {
+    super.didPush();
+    print("DENTRO DE PUSH");
+    _productController.refreshProducts();
+  }
+
+  @override
+  void didPopNext() {
+    super.didPopNext();
+    print("DENTRO DE POP");
+    _productController.refreshProducts();
+  }
+
+  @override
+  void dispose() {
     _quantityController.dispose();
     _quantityFocusNode.dispose();
     super.dispose();
   }
-  
+
   void _showAddProductDialog(BuildContext context) async 
   {
     final Product? product = await showDialog(
@@ -59,35 +68,32 @@ class InventoryPageState extends State<InventoryPage> {
       barrierDismissible: false,
       builder: (context) => const AddProductDialog(),
     );
-    if(product == null) 
-    {
-      return;
-    }
+
+    if (product == null) return;
+
     final bool success = await _productController.add(product);
-    if(success)
+    if (success) 
     {
-      _showSnackBar(context, "Produto criado ao estoque", Color(0xFF2E7D32));
+      _showSnackBar(
+        context,
+        "Produto criado ao estoque",
+        const Color(0xFF2E7D32),
+      );
       return;
     }
     _showSnackBar(context, "Erro ao criar produto ao estoque", Colors.red);
   }
 
   @override
-  Widget build(BuildContext context)
-  {
-    return ListenableBuilder(
-      listenable: _productController, 
-      builder: (context, child)
-      {
-        final products = _productController.products;
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<List<Product>>(
+      valueListenable: _productController.productsData,
+      builder: (context, products, child) 
+      {  
         return Column(
           children: [
-            if(_productController.isLoading)
-              const Expanded(
-              child: Center(
-                child: CircularProgressIndicator(),
-              ),
-              )
+            if (_productController.isLoading.value)
+              const Expanded(child: Center(child: CircularProgressIndicator()))
             else
               Expanded(
                 child: RefreshIndicator(
@@ -97,19 +103,18 @@ class InventoryPageState extends State<InventoryPage> {
                     child: Column(
                       children: [
                         if (_salePointController.isAdmin)
-                          _buildHeaderCard(context, products.length),
-                        
+                          _buildHeaderCard(context, products.length), 
+
                         const SizedBox(height: 20),
 
-                        if (products.isEmpty)
+                        if (products.isEmpty)                      
                           const Center(
                             child: Text('Nenhum produto encontrado.'),
                           )
                         else
                           GridView.builder(
                             shrinkWrap: true,
-                            physics:
-                                const NeverScrollableScrollPhysics(),
+                            physics: const NeverScrollableScrollPhysics(),
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
@@ -117,9 +122,12 @@ class InventoryPageState extends State<InventoryPage> {
                               mainAxisSpacing: 16,
                               childAspectRatio: 0.75,
                             ),
-                            itemCount: products.length,
+                            itemCount: products.length,             
                             itemBuilder: (context, index) {
-                              return _buildProductCard(context, products[index]);
+                              return _buildProductCard(
+                                context,
+                                products[index],                 
+                              );
                             },
                           ),
                       ],
@@ -127,12 +135,13 @@ class InventoryPageState extends State<InventoryPage> {
                   ),
                 ),
               ),
+            if (_selectedProductIds.isNotEmpty)
+              _buildBottomQuantitySelector(context),
           ],
         );
-      }
+      },
     );
   }
-
 
   Widget _buildHeaderCard(BuildContext context, int productCount) {
     return Container(
@@ -238,7 +247,11 @@ class InventoryPageState extends State<InventoryPage> {
                   borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
                 ),
                 child: const Center(
-                  child: Icon(Icons.inventory_2_outlined, size: 40, color: Colors.grey),
+                  child: Icon(
+                    Icons.inventory_2_outlined,
+                    size: 40,
+                    color: Colors.grey,
+                  ),
                 ),
               ),
             ),
@@ -250,7 +263,10 @@ class InventoryPageState extends State<InventoryPage> {
                   const SizedBox(height: 4),
                   Text(
                     product.name ?? "",
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -267,7 +283,7 @@ class InventoryPageState extends State<InventoryPage> {
                         ),
                       ),
                       Text(
-                        '${_formatQuantity(quantity)}  ${product.getUnitSymbol}',
+                        '${_formatQuantity(product.quantity)}  ${product.getUnitSymbol}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -286,7 +302,9 @@ class InventoryPageState extends State<InventoryPage> {
                                 if (val == true) {
                                   _selectedProductIds.add(product.productId!);
                                 } else {
-                                  _selectedProductIds.remove(product.productId!);
+                                  _selectedProductIds.remove(
+                                    product.productId!,
+                                  );
                                 }
                               });
                             },
@@ -311,7 +329,11 @@ class InventoryPageState extends State<InventoryPage> {
                           padding: const EdgeInsets.all(4),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFE74C3C)),
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            size: 18,
+                            color: Color(0xFFE74C3C),
+                          ),
                           onPressed: () => _showDeleteDialog(context, product),
                           constraints: const BoxConstraints(),
                           padding: const EdgeInsets.all(4),
@@ -328,6 +350,9 @@ class InventoryPageState extends State<InventoryPage> {
     );
   }
 
+  // ============================================================
+  // PAINEL INFERIOR — igual à print
+  // ============================================================
   Widget _buildBottomQuantitySelector(BuildContext context) {
     final int count = _selectedProductIds.length;
     return Container(
@@ -344,7 +369,11 @@ class InventoryPageState extends State<InventoryPage> {
               children: [
                 const Text(
                   'ITENS SELECIONADOS',
-                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 Text(
                   '$count item(s) selecionado(s)',
@@ -359,7 +388,9 @@ class InventoryPageState extends State<InventoryPage> {
             child: TextField(
               controller: _quantityController,
               focusNode: _quantityFocusNode,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 filled: true,
@@ -368,21 +399,25 @@ class InventoryPageState extends State<InventoryPage> {
                 hintText: 'Qtd',
                 hintStyle: TextStyle(color: Colors.grey[600]),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(4), borderSide: BorderSide.none),
+                  borderRadius: BorderRadius.circular(4),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ),
           const SizedBox(width: 12),
           ElevatedButton(
-            onPressed: () 
-            {
-              _handleOutboundCreation(context);
-            } ,
+            onPressed: () => _handleOutboundCreation(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2E7D32),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
-            child: const Text('REGISTRAR SAÍDA', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'REGISTRAR SAÍDA',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -394,42 +429,62 @@ class InventoryPageState extends State<InventoryPage> {
     final double? quantity = double.tryParse(quantityText);
 
     if (quantity == null || quantity <= 0) {
-      _showSnackBar(context, 'Por favor, insira uma quantidade válida.', Colors.red);
+      _showSnackBar(
+        context,
+        'Por favor, insira uma quantidade válida.',
+        Colors.red,
+      );
       return;
     }
 
-    if (_selectedProductIds.isEmpty) 
-    {
-      _showSnackBar(context, 'Selecione pelo menos um produto para registrar a saída.', Colors.red);
+    if (_selectedProductIds.isEmpty) {
+      _showSnackBar(
+        context,
+        'Selecione pelo menos um produto para registrar a saída.',
+        Colors.red,
+      );
       return;
     }
 
-    List<Product> productsToRetire = _productController.products.where((product)
-    {
-      return _selectedProductIds.contains(product.id);
-    }).toList();
-    
-    final bool success = await _outboundContrller.createOutboundController(productsToRetire, quantity, "", _salePointController.salesPoints);
-    if (success) 
-    {
-      _showSnackBar(context, 'Saída de ${_selectedProductIds.length} item(s) registrado(s) com sucesso!',
-          const Color(0xFF2E7D32));
+    List<Product> productsToRetire = _productController.productsData.value
+        .where((product) => _selectedProductIds.contains(product.productId))
+        .toList();
+    productsToRetire.map((p) => p.setQuantity(quantity));
+
+    final bool success = await _salePointController.createOutbound(
+      productsToRetire,
+      quantity,
+      "",
+    );
+
+    if (success) {
+      _showSnackBar(
+        context,
+        'Saída de ${_selectedProductIds.length} item(s) registrado(s) com sucesso!',
+        const Color(0xFF2E7D32),
+      );
       setState(() {
         _selectedProductIds.clear();
       });
       _quantityController.clear();
       _quantityFocusNode.unfocus();
       await OutboundService.refreshProducts();
-    } 
-    else 
-    {
-      _showSnackBar(context, 'Falha ao registrar saída. Verifique a conexão ou tente novamente', Colors.red);
+    } else {
+      _showSnackBar(
+        context,
+        'Falha ao registrar saída. Verifique a conexão ou tente novamente',
+        Colors.red,
+      );
     }
   }
 
+  // ============================================================
+  // AÇÕES AUXILIARES
+  // ============================================================
   void _handleEdit(BuildContext context, product) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('Editar: ${product.name}')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Editar: ${product.name}')));
   }
 
   void _showDeleteDialog(BuildContext context, Product product) {
@@ -450,30 +505,41 @@ class InventoryPageState extends State<InventoryPage> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             style: TextButton.styleFrom(foregroundColor: Colors.black),
-            child: const Text('CANCELAR', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'CANCELAR',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFFE74C3C)),
-            child: const Text('EXCLUIR', style: TextStyle(fontWeight: FontWeight.bold)),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFE74C3C),
+            ),
+            child: const Text(
+              'EXCLUIR',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _showSnackBar(BuildContext context,String message, Color backgroundColor) {
+  void _showSnackBar(
+    BuildContext context,
+    String message,
+    Color backgroundColor,
+  ) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: backgroundColor,
-      ),
+      SnackBar(content: Text(message), backgroundColor: backgroundColor),
     );
   }
 }
 
 
-class AddProductDialog extends StatefulWidget {
+
+class AddProductDialog extends StatefulWidget 
+{
   const AddProductDialog({super.key});
 
   @override
@@ -497,51 +563,20 @@ class _AddProductDialogState extends State<AddProductDialog>
     super.dispose();
   }
 
-  Product? _saveProduct(BuildContext context) 
+  void _handleSave(BuildContext context) 
   {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) 
-    {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('O nome é obrigatório.')),
-      );
-      return null;
-    }
-
-    final priceStr = _priceController.text.trim().replaceAll(',', '.');
-    final double? price = double.tryParse(priceStr);
-    if (price == null || price <= 0) 
-    {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preço inválido.')),
-      );
-      return null;
-    }
-
-    final double quantity = double.parse(_quantityController.text.trim().replaceAll(',', '.'));
-    final Unit unitType = Unit.amount;  
-
-    final newProduct = Product(
-      name: name,
-      price: price,
-      quantity: quantity,
-      unitType: unitType
+    final Product product = Product(
+      unitType: _selectedUnit!,
+      quantity: double.parse(_quantityController.text.trim()),
+      name: _nameController.text.trim(),
+      price: double.parse(_priceController.text.trim().replaceAll(',', '.')),
     );
-    return newProduct;
-  }
-    
-  void _handleSave(BuildContext context)
-  {
-    final Product? product = _saveProduct(context);
-    if(product == null) 
-    {
-      return;
-    }
     Navigator.pop(context, product);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) 
+  {
     return AlertDialog(
       title: const Text('Novo Produto'),
       content: SingleChildScrollView(
@@ -561,10 +596,7 @@ class _AddProductDialogState extends State<AddProductDialog>
                 border: OutlineInputBorder(),
               ),
               items: Unit.values
-                  .map((u) => DropdownMenuItem(
-                        value: u,
-                        child: Text(u.label),
-                      ))
+                  .map((u) => DropdownMenuItem(value: u, child: Text(u.label)))
                   .toList(),
               onChanged: (value) {
                 setState(() => _selectedUnit = value);
@@ -579,10 +611,7 @@ class _AddProductDialogState extends State<AddProductDialog>
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
-          onPressed: () 
-          {
-            _isLoading ? null : _handleSave(context);
-          },
+          onPressed: _isLoading ? null : () => _handleSave(context),
           child: _isLoading
               ? const SizedBox(
                   width: 20,
@@ -596,35 +625,45 @@ class _AddProductDialogState extends State<AddProductDialog>
   }
 }
 
-class CreationProductCard extends StatefulWidget
-{
+// ============================================================
+// CREATION PRODUCT CARD
+// ============================================================
+
+class CreationProductCard extends StatefulWidget {
   const CreationProductCard({super.key});
 
   @override
   State<CreationProductCard> createState() => _CreationProductCardState();
 }
 
-class _CreationProductCardState extends State<CreationProductCard>
-{
+class _CreationProductCardState extends State<CreationProductCard> {
   final _nameController = TextEditingController();
-  final _priceController= TextEditingController();
-  final _quantityController= TextEditingController();
+  final _priceController = TextEditingController();
+  final _quantityController = TextEditingController();
 
   @override
-  Widget build(BuildContext context)
-  {
+  void dispose() {
+    _nameController.dispose();
+    _priceController.dispose();
+    _quantityController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       child: Column(
         children: [
-          Text("Criação de produto", style: TextStyle(fontSize: 13, color: Colors.red)),
+          const Text(
+            "Criação de produto",
+            style: TextStyle(fontSize: 13, color: Colors.red),
+          ),
           const SizedBox(height: 12),
           SetInput(label: 'Nome', controller: _nameController),
           const SizedBox(height: 12),
           SetInput(label: 'Preço', controller: _priceController),
           const SizedBox(height: 12),
           SetInput(label: 'Quantidade', controller: _quantityController),
-          const SizedBox(height: 12),
-          SetInput(label: 'Quantidade', controller: _quantityController)
         ],
       ),
     );

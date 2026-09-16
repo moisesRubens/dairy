@@ -2,29 +2,35 @@ import 'package:dairy/domain/product.dart';
 import 'package:dairy/services/product_service.dart';
 import 'package:flutter/material.dart';
 
-class ProductController extends ChangeNotifier
-{
-  List<Product> _list = [];
+class ProductController {
+  ValueNotifier<List<Product>> _productsData = ValueNotifier<List<Product>>([]);
   final ProductService _service;
-  bool _isLoading = false;
+  ValueNotifier<bool> _isLoading = ValueNotifier<bool>(false);
 
-  ProductController({ProductService? service}) : _service = service ?? ProductService() 
-  {
+  ProductController({ProductService? service})
+    : _service = service ?? ProductService() {
     refreshProducts();
   }
-  
-  bool get isLoading => _isLoading;
-  List<Product> get products => List.unmodifiable(_list);
 
-  Future<bool> add(Product product) async
+  ValueNotifier<bool> get isLoading => _isLoading;
+
+  void setIsLoading(bool value) {
+    _isLoading.value = value;
+  }
+
+  ValueNotifier<List<Product>> get productsData => _productsData;
+
+  Future<bool> add(Product product) async 
   {
-    try
+    try 
     {
-      await _service.createProduct(product);
-      await refreshProducts();
+      if (await _service.createProduct(product)) 
+      {
+        refreshProducts();
+      }
       return true;
     } 
-    catch(e)
+    catch (e) 
     {
       return false;
     }
@@ -32,20 +38,16 @@ class ProductController extends ChangeNotifier
 
   Future<void> refreshProducts() async 
   {
-    _isLoading = true;
-    notifyListeners();
+    _isLoading.value = true;
     try 
     {
-      _list = await _service.getProducts();
-    }
-    catch(e)
+      _productsData.value = await _service.getProducts();
+    } 
+    catch (e) 
     {
       print("EXCECAO NO REFRESH PRODUCTS");
-    }
-    finally
-    {
-      _isLoading = false;
-      notifyListeners();
+    } finally {
+      _isLoading.value = false;
     }
   }
 }
