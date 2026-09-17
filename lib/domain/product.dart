@@ -124,11 +124,9 @@ id: int
   Map<String, dynamic> toJson() 
   {
     Map<String, dynamic> map = {
-      'name': name,
-      'price': price,      
-      'amount': (unitType.label == "amount") ? _quantity : -1, 
-      'kg': (unitType.label == "kg") ? _quantity : -1,  
-      'liters': (unitType.label == "liters") ? _quantity : -1,     
+      'product_id': productId,
+      'quantidade': quantity,
+      'unidade': unitType.label     
     };
     return map;
   }

@@ -249,9 +249,10 @@ class OutboundService {
     final url = Uri.parse('${ApiConfig.baseUrl}/auth/$salePointId/outbounds');
     print('🟡 [5] URL: $url');
 
-    final List<Map<String, dynamic>> produtosJson = products
-        .map((p) => p.toJson())
-        .toList();
+    final List<Map<String, dynamic>> produtosJson = products.map((p) {
+      p.quantity = quantity;
+      return p.toJson();
+    }).toList();
 
     print('🟡 [6] Payload: $produtosJson');
 
@@ -273,11 +274,9 @@ class OutboundService {
 
       print('🟡 [7] Status HTTP: ${response.statusCode}');
       print('🟡 [8] Body: ${response.body}');
-
+      print("STATUS CODE DO RESPONSE: $response");
       return (response.statusCode == 201 || response.statusCode == 200);
-    } 
-    catch (e) 
-    {
+    } catch (e) {
       print('🔴 [11] Exceção: $e');
       return false;
     }

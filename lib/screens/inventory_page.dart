@@ -61,8 +61,7 @@ class InventoryPageState extends State<InventoryPage> with RouteAware {
     super.dispose();
   }
 
-  void _showAddProductDialog(BuildContext context) async 
-  {
+  void _showAddProductDialog(BuildContext context) async {
     final Product? product = await showDialog(
       context: context,
       barrierDismissible: false,
@@ -72,8 +71,7 @@ class InventoryPageState extends State<InventoryPage> with RouteAware {
     if (product == null) return;
 
     final bool success = await _productController.add(product);
-    if (success) 
-    {
+    if (success) {
       _showSnackBar(
         context,
         "Produto criado ao estoque",
@@ -88,8 +86,7 @@ class InventoryPageState extends State<InventoryPage> with RouteAware {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<List<Product>>(
       valueListenable: _productController.productsData,
-      builder: (context, products, child) 
-      {  
+      builder: (context, products, child) {
         return Column(
           children: [
             if (_productController.isLoading.value)
@@ -103,11 +100,11 @@ class InventoryPageState extends State<InventoryPage> with RouteAware {
                     child: Column(
                       children: [
                         if (_salePointController.isAdmin)
-                          _buildHeaderCard(context, products.length), 
+                          _buildHeaderCard(context, products.length),
 
                         const SizedBox(height: 20),
 
-                        if (products.isEmpty)                      
+                        if (products.isEmpty)
                           const Center(
                             child: Text('Nenhum produto encontrado.'),
                           )
@@ -117,16 +114,16 @@ class InventoryPageState extends State<InventoryPage> with RouteAware {
                             physics: const NeverScrollableScrollPhysics(),
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: 0.75,
-                            ),
-                            itemCount: products.length,             
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                  childAspectRatio: 0.75,
+                                ),
+                            itemCount: products.length,
                             itemBuilder: (context, index) {
                               return _buildProductCard(
                                 context,
-                                products[index],                 
+                                products[index],
                               );
                             },
                           ),
@@ -449,13 +446,14 @@ class InventoryPageState extends State<InventoryPage> with RouteAware {
     List<Product> productsToRetire = _productController.productsData.value
         .where((product) => _selectedProductIds.contains(product.productId))
         .toList();
+    print("PRODUTOS PRA RETIRAR: $productsToRetire");
 
     final bool success = await _salePointController.createOutbound(
       productsToRetire,
       quantity,
       "",
     );
-
+    print("SUCESSO: $success");
     if (success) {
       _showSnackBar(
         context,
@@ -535,18 +533,14 @@ class InventoryPageState extends State<InventoryPage> with RouteAware {
   }
 }
 
-
-
-class AddProductDialog extends StatefulWidget 
-{
+class AddProductDialog extends StatefulWidget {
   const AddProductDialog({super.key});
 
   @override
   State<AddProductDialog> createState() => _AddProductDialogState();
 }
 
-class _AddProductDialogState extends State<AddProductDialog> 
-{
+class _AddProductDialogState extends State<AddProductDialog> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
@@ -554,16 +548,14 @@ class _AddProductDialogState extends State<AddProductDialog>
   bool _isLoading = false;
 
   @override
-  void dispose() 
-  {
+  void dispose() {
     _nameController.dispose();
     _priceController.dispose();
     _quantityController.dispose();
     super.dispose();
   }
 
-  void _handleSave(BuildContext context) 
-  {
+  void _handleSave(BuildContext context) {
     final Product product = Product(
       unitType: _selectedUnit!,
       quantity: double.parse(_quantityController.text.trim()),
@@ -574,8 +566,7 @@ class _AddProductDialogState extends State<AddProductDialog>
   }
 
   @override
-  Widget build(BuildContext context) 
-  {
+  Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Novo Produto'),
       content: SingleChildScrollView(

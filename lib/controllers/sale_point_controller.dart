@@ -49,6 +49,7 @@ class SalePointController extends ChangeNotifier {
       quantity,
       obs,
     );
+    print("RESULT: $result");
     if (result) {
       String dateStr = DateFormat("yyyy/MM/dd").format(DateTime.now());
       List<Product>? outboundProducts = await _outboundService
