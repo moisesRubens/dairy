@@ -21,7 +21,7 @@ class Product {
   Unit get unitType => _unitType;
   double get quantity => _quantity;
 
-  void setQuantity(double quantity)
+  set quantity(double quantity)
   {
     _quantity = quantity;
   }

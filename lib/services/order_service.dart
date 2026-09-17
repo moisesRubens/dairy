@@ -120,8 +120,8 @@ class OrderService {
         
         if (currentProduct != null) 
         {
-          double toSub = soldProduct.quantity ?? 0;
-          currentProduct.setQuantity(currentProduct.quantity! - toSub);
+          double toSub = soldProduct.quantity;
+          currentProduct.quantity = currentProduct.quantity - toSub;
           await _productDao.updateQuantity2(currentProduct);
         } 
         else 

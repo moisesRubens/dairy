@@ -2,6 +2,7 @@ import 'package:dairy/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/product.dart';
 import '../domain/sale_point.dart';
@@ -37,14 +38,26 @@ class SalePointController extends ChangeNotifier {
 
   ValueNotifier<List<Map<String, dynamic>>> get salesPoints => _salesPoints;
   ValueNotifier<List<Product>> get products => _products;
-  
-  Future<bool> createOutbound(List<Product> productsToRetire, double quantity, String? obs) async {
-    return await _outboundService.createOutbound(
-      _products,
+
+  Future<bool> createOutbound(
+    List<Product> productsToRetire,
+    double quantity,
+    String? obs,
+  ) async {
+    bool result = await _outboundService.createOutbound(
       productsToRetire,
       quantity,
-      obs
+      obs,
     );
+    if (result) {
+      String dateStr = DateFormat("yyyy/MM/dd").format(DateTime.now());
+      List<Product>? outboundProducts = await _outboundService
+          .loadOutboundsByDate(dateStr);
+      if (outboundProducts != null) {
+        products.value = outboundProducts;
+      }
+    }
+    return result;
   }
 
   Future<void> getSalePointId() async {

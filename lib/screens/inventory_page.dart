@@ -449,7 +449,6 @@ class InventoryPageState extends State<InventoryPage> with RouteAware {
     List<Product> productsToRetire = _productController.productsData.value
         .where((product) => _selectedProductIds.contains(product.productId))
         .toList();
-    productsToRetire.map((p) => p.setQuantity(quantity));
 
     final bool success = await _salePointController.createOutbound(
       productsToRetire,

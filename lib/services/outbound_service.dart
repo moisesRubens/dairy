@@ -229,7 +229,7 @@ class OutboundService {
   }
 
   Future<bool> createOutbound(
-    ValueNotifier<List<Product>> stockProducts,
+    //ValueNotifier<List<Product>> stockProducts,
     List<Product>? products,
     double quantity,
     String? obs,
@@ -249,9 +249,9 @@ class OutboundService {
     final url = Uri.parse('${ApiConfig.baseUrl}/auth/$salePointId/outbounds');
     print('🟡 [5] URL: $url');
 
-    final List<Map<String, dynamic>> produtosJson = products.map((entry) {
-      return entry.toJson();
-    }).toList();
+    final List<Map<String, dynamic>> produtosJson = products
+        .map((p) => p.toJson())
+        .toList();
 
     print('🟡 [6] Payload: $produtosJson');
 
@@ -274,29 +274,10 @@ class OutboundService {
       print('🟡 [7] Status HTTP: ${response.statusCode}');
       print('🟡 [8] Body: ${response.body}');
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        for (final entry in products) {
-          final Product? localProduct = await dao.getProduct2(
-            productId: entry.productId,
-          );
-          if (localProduct != null) 
-          {
-            double newQuantity = localProduct.quantity - quantity;
-            localProduct.setQuantity(newQuantity);
-            await dao.saveProduct(localProduct);
-          } 
-          else 
-          {
-            await dao.addProduct(entry);
-          }
-        }
-        products.map((p) => stockProducts.value = [...stockProducts.value, p]);
-        return true;
-      } else {
-        print('🔴 [10] API rejeitou com ${response.statusCode}');
-        return false;
-      }
-    } catch (e) {
+      return (response.statusCode == 201 || response.statusCode == 200);
+    } 
+    catch (e) 
+    {
       print('🔴 [11] Exceção: $e');
       return false;
     }
@@ -318,11 +299,10 @@ class OutboundService {
         final double quantity = entry.value;
 
         Product? p = await dao.getProductById(product.productId!);
+        p?.quantity = quantity;
         if (p != null) {
-          p.setQuantity(quantity);
-          dao.updateProduct(p);
+          await dao.updateProduct(p);
         } else {
-          product.setQuantity(quantity);
           await dao.addProduct(product);
         }
       }

@@ -343,7 +343,8 @@ class HomePageState extends State<HomePage> {
   Widget _buildProductTable() {
     return ValueListenableBuilder<List<Product>>(
       valueListenable: _salePointController.products,
-      builder: (context, produtosAtualizados, child) {
+      builder: (context, produtosAtualizados, child) 
+      {
         print('🏠 HomePage builder - ${produtosAtualizados.length} produtos');
         return Container(
           decoration: BoxDecoration(
