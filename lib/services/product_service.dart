@@ -75,8 +75,7 @@ class ProductService {
     }
   }
 
-  Future<bool> createProduct(Product product) async 
-  {
+  Future<bool> createProduct(Product product) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
 
@@ -87,9 +86,8 @@ class ProductService {
 
     final url = Uri.parse('${ApiConfig.baseUrl}/products/');
     final List<Map<String, dynamic>> body = [product.toJson()];
-
-    try 
-    {
+    print("BODY DO CREATE: $body");
+    try {
       final response = await http.post(
         url,
         headers: {
@@ -100,18 +98,13 @@ class ProductService {
         body: jsonEncode(body),
       );
 
-      if (response.statusCode == 201 || response.statusCode == 200) 
-      {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         return true;
-      } 
-      else 
-      {
+      } else {
         debugPrint("NAO DEU A RESPOSTA CORRETA");
         return false;
       }
-    } 
-    catch (e) 
-    {
+    } catch (e) {
       print('❌ Exceção ao criar produto: $e');
       return false;
     }

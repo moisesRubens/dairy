@@ -120,13 +120,23 @@ id: int
       productId: json['id']
     );
   }
-
+/*name: str | None
+    price: float | None
+    amount: float | None = -1
+    kg: float | None = -1
+    liters: float | None = -1*/
   Map<String, dynamic> toJson() 
   {
     Map<String, dynamic> map = {
+      'name': name,
+      'price': price,
+      'amount': (unitType.label == "amount") ? quantity : -1,
+      'kg': (unitType.label == "kg") ? quantity : -1,
+      'liters': (unitType.label == "liters") ? quantity : -1,
       'product_id': productId,
       'quantidade': quantity,
-      'unidade': unitType.label     
+      'unidade': unitType.label ,
+
     };
     return map;
   }

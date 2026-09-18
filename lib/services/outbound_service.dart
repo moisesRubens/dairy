@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../database/product_dao.dart';
 import '../domain/outbound.dart';
 import 'package:intl/intl.dart';
+import '../Enums/product_enum.dart';
 
 class OutboundService {
   final dao = ProductDao();
@@ -144,9 +145,9 @@ class OutboundService {
       }
 
       DateTime dateTime = (date != null)
-          ? DateTime.parse(date!)
+          ? DateTime.parse(date)
           : DateTime.now();
-      String dateFormat = DateFormat("dd/MM/yyyy").format(dateTime);
+      String dateFormat = DateFormat("yyyy-MM-dd").format(dateTime);
 
       final url = Uri.parse('${ApiConfig.baseUrl}/outbounds/?date=$dateFormat');
 
@@ -158,19 +159,40 @@ class OutboundService {
           'Authorization': 'Bearer $token',
         },
       );
-
+      print("STATUS CODE AGR: ${response.statusCode}");
       if (response.statusCode == 200) {
-        final List<Map<String, dynamic>> data = jsonDecode(response.body);
-        final List<Product> outbounds = data.map((d) {
-          return Product.fromMap(d);
-        }).toList();
+        final decode = jsonDecode(response.body) as List;
+        final List<Map<String, dynamic>> data = decode.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+        print("DADOS: $data");
+        final rawOutbounds = data
+          .expand((point) => (point['outbounds'] as List? ?? const []))
+          .map((item) => Map<String, dynamic>.from(item as Map));
+        final List<Product> outbounds = rawOutbounds.map((item) {
+        final unit = switch (item['unidade']) {
+          'kg' => Unit.kg,
+          'liters' => Unit.liters,
+          _ => Unit.amount,
+        };
+
+        return Product(
+          id: item['id'] as int?,
+          productId: item['product_id'] as int?,
+          name: item['name'] as String?,
+          price: (item['price'] as num?)?.toDouble() ?? 0.0,
+          unitType: unit,
+          quantity: (item['remaining_quantity'] as num?)?.toDouble() ??
+              (item['taken_quantity'] as num?)?.toDouble() ??
+              0.0,
+        );
+      }).toList();
+        print("RETIRADAS: $outbounds");
         return outbounds;
       } else {
         debugPrint('❌ Erro ao buscar outbounds: ${response.statusCode}');
-        return null;
+        throw Exception;
       }
     } catch (e) {
-      debugPrint('❌ Erro ao carregar outbounds por data: $e');
+      debugPrint('❌ Erro ao carregar outbounds: $e');
     }
   }
 

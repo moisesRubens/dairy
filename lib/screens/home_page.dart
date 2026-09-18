@@ -2,6 +2,7 @@ import 'package:dairy/Enums/product_enum.dart';
 import 'package:dairy/widgets/product_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../domain/product.dart';
 import '../services/outbound_service.dart';
 import '../controllers/sale_point_controller.dart';
@@ -16,7 +17,7 @@ class HomePage extends StatefulWidget {
 }
 
 class HomePageState extends State<HomePage> {
-  final SalePointController _salePointController = SalePointController();
+  late SalePointController _salePointController;
   final ScrollController _scrollController = ScrollController();
   double dailyRevenue = 1250.50;
   List<Product> products = [];
@@ -27,15 +28,13 @@ class HomePageState extends State<HomePage> {
 
   TextEditingController _quantityControllerFor(Product product) {
     final key = product.productId ?? product.id ?? identityHashCode(product);
-    return _quantityControllers.putIfAbsent(
-      key,
-      TextEditingController.new,
-    );
+    return _quantityControllers.putIfAbsent(key, TextEditingController.new);
   }
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _salePointController = context.read<SalePointController>();
     _loadProducts();
   }
 
@@ -54,10 +53,9 @@ class HomePageState extends State<HomePage> {
     _scrollController.jumpTo(0);
   }
 
-  Future<void> _loadProducts() async 
-  {
+  Future<void> _loadProducts() async {
     setState(() => _isLoading = true);
-    await OutboundService.refreshProducts();
+    await _salePointController.loadOutboundsByDate();
     await _loadDailyRevenue();
     setState(() => _isLoading = false);
   }
@@ -91,7 +89,9 @@ class HomePageState extends State<HomePage> {
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
@@ -114,7 +114,7 @@ class HomePageState extends State<HomePage> {
         setState(() {
           cart.clear();
         });
-
+        await _salePointController.loadOutboundsByDate();
         await OutboundService.refreshProducts();
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -147,7 +147,6 @@ class HomePageState extends State<HomePage> {
       }
     }
   }
-
 
   bool addToCart(Product product, double quantity) {
     if (quantity <= 0) return false;
@@ -218,7 +217,10 @@ class HomePageState extends State<HomePage> {
   }
 
   double getTotalValue() {
-    return cart.fold(0.0, (sum, item) => sum + (item['price'] * item['quantity']));
+    return cart.fold(
+      0.0,
+      (sum, item) => sum + (item['price'] * item['quantity']),
+    );
   }
 
   Future<void> _finalizarVenda() async {
@@ -238,7 +240,8 @@ class HomePageState extends State<HomePage> {
 
     final success = await _salePointController.fazerVenda(
       productsToSell,
-      description: 'Venda do dia ${DateTime.now().toLocal().toString().split(' ')[0]}',
+      description:
+          'Venda do dia ${DateTime.now().toLocal().toString().split(' ')[0]}',
       totalValue: getTotalValue(),
     );
 
@@ -259,7 +262,9 @@ class HomePageState extends State<HomePage> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ ${_salePointController.errorMessage.value ?? "Erro ao finalizar venda"}'),
+          content: Text(
+            '❌ ${_salePointController.errorMessage.value ?? "Erro ao finalizar venda"}',
+          ),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 4),
         ),
@@ -306,14 +311,21 @@ class HomePageState extends State<HomePage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Faturamento do Dia', style: TextStyle(color: Colors.white, fontSize: 16)),
+              const Text(
+                'Faturamento do Dia',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
               _buildReturnButton(),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             'R\$ ${dailyRevenue.toStringAsFixed(2).replaceAll('.', ',')}',
-            style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -333,7 +345,10 @@ class HomePageState extends State<HomePage> {
           ? const SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
             )
           : const Icon(Icons.assignment_return, size: 20),
       label: Text(_isReturning ? 'Retornando...' : 'Retornar'),
@@ -343,9 +358,8 @@ class HomePageState extends State<HomePage> {
   Widget _buildProductTable() {
     return ValueListenableBuilder<List<Product>>(
       valueListenable: _salePointController.products,
-      builder: (context, produtosAtualizados, child) 
-      {
-        print('🏠 HomePage builder - ${produtosAtualizados.length} produtos');
+      builder: (context, produtosAtualizados, child) {
+        final List<Product> productList = produtosAtualizados.where((p) => p.quantity > 0).toList();
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -354,6 +368,19 @@ class HomePageState extends State<HomePage> {
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
+              final availableProducts = productList.where(
+                (p) => p.quantity > 0,
+              );
+              
+              if(availableProducts.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(
+                    child: Text('Nenhum produto pronto para vender.')
+                  )
+                );
+              }
+
               if (_isLoading) {
                 return const Padding(
                   padding: EdgeInsets.all(24),
@@ -361,7 +388,7 @@ class HomePageState extends State<HomePage> {
                 );
               }
 
-              if (produtosAtualizados.isEmpty) {
+              if (productList.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(child: Text('Nenhum produto em estoque.')),
@@ -370,17 +397,18 @@ class HomePageState extends State<HomePage> {
 
               if (constraints.maxWidth < 700) {
                 return Column(
-                  children: produtosAtualizados.asMap().entries.map((entry) {
+                  children: productList.asMap().entries.map((entry) {
                     final product = entry.value;
                     final controller = _quantityControllerFor(product);
                     return Column(
                       children: [
                         ProductCard(
-                          product: product, 
-                          allocation: Allocation.sales, 
+                          product: product,
+                          allocation: Allocation.sales,
                           unitType: product.unitType,
-                          onTap: () => {}),
-                        if (entry.key != produtosAtualizados.length - 1)
+                          onTap: () => {},
+                        ),
+                        if (entry.key != productList.length - 1)
                           Divider(height: 1, color: Colors.grey[300]),
                       ],
                     );
@@ -390,37 +418,67 @@ class HomePageState extends State<HomePage> {
 
               return Column(
                 children: [
-              // Cabeçalho
-              Container(
-                color: Colors.grey[100],
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                child: const Row(
-                  children: [
-                    Expanded(flex: 2, child: Text('Produto', style: TextStyle(fontWeight: FontWeight.bold))),
-                    Expanded(flex: 1, child: Text('Preço', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.left)),
-                    Expanded(flex: 1, child: Text('Estoque', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                    Expanded(flex: 2, child: Text('Quantidade para venda', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                    SizedBox(width: 92),
-                  ],
-                ),
-              ),
-              ...produtosAtualizados.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final product = entry.value;
-                  final controller = _quantityControllerFor(product);
-                  return Column(
-                    children: [
-                      ProductRow(
-                        product: product,
-                        controller: controller,
-                        onAdd: () =>
-                            _addProductFromController(product, controller),
-                      ),
-                      if (index != produtosAtualizados.length - 1)
-                        Divider(height: 1, color: Colors.grey[300]),
-                    ],
-                  );
-                }).toList(),
+                  // Cabeçalho
+                  Container(
+                    color: Colors.grey[100],
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    child: const Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            'Produto',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 1,
+                          child: Text(
+                            'Preço',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.left,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 1,
+                          child: Text(
+                            'Estoque',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            'Quantidade para venda',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        SizedBox(width: 92),
+                      ],
+                    ),
+                  ),
+                  ...productList.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final product = entry.value;
+                    final controller = _quantityControllerFor(product);
+                    return Column(
+                      children: [
+                        ProductRow(
+                          product: product,
+                          controller: controller,
+                          onAdd: () =>
+                              _addProductFromController(product, controller),
+                        ),
+                        if (index != productList.length - 1)
+                          Divider(height: 1, color: Colors.grey[300]),
+                      ],
+                    );
+                  }).toList(),
                 ],
               );
             },
@@ -461,10 +519,12 @@ class HomePageState extends State<HomePage> {
           ),
           child: Column(
             children: [
-              ...cart.map((item) => CartItemRow(
-                    item: item,
-                    onRemove: () => removeFromCart(item['name']),
-                  )),
+              ...cart.map(
+                (item) => CartItemRow(
+                  item: item,
+                  onRemove: () => removeFromCart(item['name']),
+                ),
+              ),
               const Divider(height: 1),
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -530,8 +590,13 @@ class HomePageState extends State<HomePage> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: isLoading ? null : () => setState(() => cart.clear()),
-                child: const Text('Limpar', style: TextStyle(color: Colors.white)),
+                onPressed: isLoading
+                    ? null
+                    : () => setState(() => cart.clear()),
+                child: const Text(
+                  'Limpar',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -547,7 +612,10 @@ class HomePageState extends State<HomePage> {
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Text('Finalizar Venda'),
               ),
@@ -564,7 +632,6 @@ class HomePageState extends State<HomePage> {
       controller.dispose();
     }
     _scrollController.dispose();
-    _salePointController.dispose();
     super.dispose();
   }
 }
@@ -618,12 +685,12 @@ class ProductCard1 extends StatelessWidget {
               Expanded(
                 child: TextField(
                   controller: controller,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: [
                     TextInputFormatter.withFunction((oldValue, newValue) {
-                      return RegExp(r'^\d*([\.,]\d*)?$')
-                              .hasMatch(newValue.text)
+                      return RegExp(r'^\d*([\.,]\d*)?$').hasMatch(newValue.text)
                           ? newValue
                           : oldValue;
                     }),
@@ -632,7 +699,9 @@ class ProductCard1 extends StatelessWidget {
                   onSubmitted: (_) => onAdd(),
                   decoration: InputDecoration(
                     labelText: 'Quantidade',
-                    hintText: product.getUnitSymbol == 'un' ? 'Ex.: 2' : 'Ex.: 1,5',
+                    hintText: product.getUnitSymbol == 'un'
+                        ? 'Ex.: 2'
+                        : 'Ex.: 1,5',
                     suffixText: product.getUnitSymbol,
                     filled: true,
                     fillColor: Colors.grey[50],
@@ -706,7 +775,6 @@ class ProductRow extends StatelessWidget {
     required this.onAdd,
   });
 
-
   String _formatQuantity() {
     if (product.getUnitSymbol == 'un') {
       return product.quantity.toString();
@@ -755,18 +823,23 @@ class ProductRow extends StatelessWidget {
             flex: 2,
             child: TextField(
               controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: [
                 TextInputFormatter.withFunction((oldValue, newValue) {
-                  final isValid = RegExp(r'^\d*([\.,]\d*)?$')
-                      .hasMatch(newValue.text);
+                  final isValid = RegExp(
+                    r'^\d*([\.,]\d*)?$',
+                  ).hasMatch(newValue.text);
                   return isValid ? newValue : oldValue;
                 }),
               ],
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => onAdd(),
               decoration: InputDecoration(
-                hintText: (product.getUnitSymbol == 'un') ? 'Ex.: 2' : 'Ex.: 1,5',
+                hintText: (product.getUnitSymbol == 'un')
+                    ? 'Ex.: 2'
+                    : 'Ex.: 1,5',
                 suffixText: product.getUnitSymbol,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),

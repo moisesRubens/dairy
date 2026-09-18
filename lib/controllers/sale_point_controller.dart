@@ -1,6 +1,7 @@
 import 'package:dairy/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../Enums/product_enum.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,9 +29,7 @@ class SalePointController extends ChangeNotifier {
 
   final ValueNotifier<List<Map<String, dynamic>>> _salesPoints =
       ValueNotifier<List<Map<String, dynamic>>>([]);
-  final ValueNotifier<List<Product>> _products = ValueNotifier<List<Product>>(
-    [],
-  );
+  final ValueNotifier<List<Product>> _products = ValueNotifier<List<Product>>([]);
 
   SalePointController() : _authService = AuthService() {
     getSalePointId();
@@ -49,15 +48,7 @@ class SalePointController extends ChangeNotifier {
       quantity,
       obs,
     );
-    print("RESULT: $result");
-    if (result) {
-      String dateStr = DateFormat("yyyy/MM/dd").format(DateTime.now());
-      List<Product>? outboundProducts = await _outboundService
-          .loadOutboundsByDate(dateStr);
-      if (outboundProducts != null) {
-        products.value = outboundProducts;
-      }
-    }
+    if (result) await loadOutboundsByDate();
     return result;
   }
 
@@ -110,10 +101,12 @@ class SalePointController extends ChangeNotifier {
     }
   }
 
-  Future<void> loadOutboundsByDate(String date) async {
+  Future<void> loadOutboundsByDate([String? date]) async {
+    print(" PRODUTOS DO SALE POINT: ${_products.value}");
     try {
       isLoading.value = true;
-      await _outboundService.loadOutboundsByDate(date);
+      List<Product>? list = await _outboundService.loadOutboundsByDate(date);
+      if(list != null) _products.value = list;
     } catch (e) {
       errorMessage.value = 'Erro ao carregar outbounds: $e';
       debugPrint('❌ Erro em loadOutboundsByDate: $e');

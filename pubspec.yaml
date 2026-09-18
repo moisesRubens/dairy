@@ -42,7 +42,8 @@ dependencies:
   sqflite: ^2.3.0
   sqflite_common_ffi: ^2.3.4+1  # ESSENCIAL PARA WEB!
   sqflite_common_ffi_web: ^1.1.1
-  path_provider: ^2.1.5          # ESSENCIAL!
+  path_provider: ^2.1.5 
+  provider: ^6.1.2
   path: ^1.9.1
   intl: ^0.18.1
 

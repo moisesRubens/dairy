@@ -1,8 +1,9 @@
+import 'package:dairy/controllers/sale_point_controller.dart';
 import 'package:dairy/screens/inventory_page.dart';
 import 'package:dairy/screens/sales_points.dart';
 import 'package:dairy/screens/login_page.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'screens/home_page.dart';
 import 'screens/orders_page.dart';
 import 'services/auth_service.dart';
@@ -14,41 +15,37 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DB.instance.database;
   runApp(
-    MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Fazenda Boa Esperança',
-      theme: ThemeData(
-        primaryColor: Colors.black,
-        useMaterial3: true,
+    MultiProvider(
+      providers: [ChangeNotifierProvider(create: (_) => SalePointController())],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Fazenda Boa Esperança',
+        theme: ThemeData(primaryColor: Colors.black, useMaterial3: true),
+        home: const LoginPage(),
       ),
-      home: const LoginPage(),
-    )
+    ),
   );
 }
 
 final AuthService _authService = AuthService();
 
-
-class MainShell extends StatefulWidget 
-{
+class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> 
-{
+class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   final List<Widget> _pages = [
     const HomePage(),
     const OrdersPage(),
     const InventoryPage(),
-    const SalesPointsPage()
+    const SalesPointsPage(),
   ];
 
-  void _showProfileDialog(BuildContext context) 
-  {
+  void _showProfileDialog(BuildContext context) {
     // Busca os dados atuais do usuário
     Future<SalePoint?> futureUser = _authService.getCurrentSalePoint();
 
@@ -76,7 +73,9 @@ class _MainShellState extends State<MainShell>
                 if (success && context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Perfil atualizado com sucesso!')),
+                    const SnackBar(
+                      content: Text('Perfil atualizado com sucesso!'),
+                    ),
                   );
                 } else if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -99,18 +98,18 @@ class _MainShellState extends State<MainShell>
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
         shape: Border(bottom: BorderSide(color: Colors.grey[800]!, width: 2)),
-        title: const Text('Fazenda Boa Esperança', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Fazenda Boa Esperança',
+          style: TextStyle(color: Colors.white),
+        ),
       ),
-      drawer: AppDrawer(
-        onProfileTap: () => _showProfileDialog(context),
-      ),
+      drawer: AppDrawer(onProfileTap: () => _showProfileDialog(context)),
       body: _pages[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
         elevation: 0,
         currentIndex: _currentIndex,
-        onTap: (index) 
-        {
+        onTap: (index) {
           setState(() => _currentIndex = index);
         },
         type: BottomNavigationBarType.fixed,
@@ -118,9 +117,18 @@ class _MainShellState extends State<MainShell>
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Pedidos'),
-          BottomNavigationBarItem(icon: Icon(Icons.inventory_2), label: 'Estoque'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_search), label: 'Perfis'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart),
+            label: 'Pedidos',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.inventory_2),
+            label: 'Estoque',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_search),
+            label: 'Perfis',
+          ),
         ],
       ),
     );
@@ -147,27 +155,40 @@ class AppDrawer extends StatelessWidget {
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.account_circle_outlined, color: Colors.black),
-            title: const Text('PERFIL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            leading: const Icon(
+              Icons.account_circle_outlined,
+              color: Colors.black,
+            ),
+            title: const Text(
+              'PERFIL',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
             onTap: () {
               Navigator.pop(context); // Fecha o drawer
               onProfileTap();
             },
           ),
           ListTile(
-            leading: const Icon(Icons.logout_outlined, color: Color(0xFFE74C3C)),
+            leading: const Icon(
+              Icons.logout_outlined,
+              color: Color(0xFFE74C3C),
+            ),
             title: const Text(
               'SAIR',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFE74C3C)),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: Color(0xFFE74C3C),
+              ),
             ),
-            onTap: () async 
-            {
+            onTap: () async {
               await _authController.logout();
-              if (context.mounted) 
-              {
+              if (context.mounted) {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (BuildContext context) => const LoginPage())
+                  MaterialPageRoute(
+                    builder: (BuildContext context) => const LoginPage(),
+                  ),
                 );
               }
             },
@@ -184,7 +205,8 @@ class AppDrawer extends StatelessWidget {
 class ProfileDialog extends StatefulWidget {
   final String initialName;
   final String initialEmail;
-  final Future<void> Function(String name, String email, String password) onSave;
+  final Future<void> Function(String name, String email, String password)
+  onSave;
 
   const ProfileDialog({
     super.key,

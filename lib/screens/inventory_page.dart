@@ -3,9 +3,9 @@ import 'package:dairy/controllers/outbound_controller.dart';
 import 'package:dairy/controllers/product_controller.dart';
 import 'package:dairy/controllers/sale_point_controller.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart';
 import '../domain/product.dart';
 import '../services/product_service.dart';
+import 'package:provider/provider.dart';
 import '../services/outbound_service.dart';
 import '../database/product_dao.dart';
 import '../services/auth_service.dart';
@@ -19,8 +19,8 @@ class InventoryPage extends StatefulWidget {
 }
 
 class InventoryPageState extends State<InventoryPage> with RouteAware {
-  late final ProductController _productController;
-  late final SalePointController _salePointController;
+  late ProductController _productController = ProductController();
+  late SalePointController _salePointController;
 
   int? _expandedProductId;
   final Set<int> _selectedProductIds = {};
@@ -28,15 +28,9 @@ class InventoryPageState extends State<InventoryPage> with RouteAware {
   final FocusNode _quantityFocusNode = FocusNode();
 
   @override
-  void initState({
-    ProductController? productController,
-    SalePointController? salePointController,
-    OutboundController? outboundContrller,
-  }) {
-    super.initState();
-    _productController = productController ?? ProductController();
-    _salePointController = salePointController ?? SalePointController();
-    print("DENTRO DE INTI");
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _salePointController = context.read<SalePointController>();
     _productController.refreshProducts();
   }
 
@@ -446,20 +440,16 @@ class InventoryPageState extends State<InventoryPage> with RouteAware {
     List<Product> productsToRetire = _productController.productsData.value
         .where((product) => _selectedProductIds.contains(product.productId))
         .toList();
-    print("PRODUTOS PRA RETIRAR: $productsToRetire");
 
     final bool success = await _salePointController.createOutbound(
       productsToRetire,
       quantity,
       "",
     );
+    _productController.refreshProducts();
     print("SUCESSO: $success");
     if (success) {
-      _showSnackBar(
-        context,
-        'Saída de ${_selectedProductIds.length} item(s) registrado(s) com sucesso!',
-        const Color(0xFF2E7D32),
-      );
+      
       setState(() {
         _selectedProductIds.clear();
       });
