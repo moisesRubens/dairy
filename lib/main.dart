@@ -100,7 +100,7 @@ class _MainShellState extends State<MainShell> {
         shape: Border(bottom: BorderSide(color: Colors.grey[800]!, width: 2)),
         title: const Text(
           'Fazenda Boa Esperança',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
       drawer: AppDrawer(onProfileTap: () => _showProfileDialog(context)),

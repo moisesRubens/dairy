@@ -1,3 +1,4 @@
+import 'package:decimal/decimal.dart';
 import 'package:dairy/Enums/product_enum.dart';
 import 'package:dairy/widgets/product_card.dart';
 import 'package:flutter/material.dart';
@@ -21,14 +22,20 @@ class HomePageState extends State<HomePage> {
   final ScrollController _scrollController = ScrollController();
   double dailyRevenue = 1250.50;
   List<Product> products = [];
+  List<Map<String, dynamic>> cart = [];
   bool _isLoading = true;
   bool _isReturning = false;
-  List<Map<String, dynamic>> cart = [];
   final Map<int, TextEditingController> _quantityControllers = {};
+  final Map<int, FocusNode> _quantityFocusNodes = {};
 
   TextEditingController _quantityControllerFor(Product product) {
     final key = product.productId ?? product.id ?? identityHashCode(product);
     return _quantityControllers.putIfAbsent(key, TextEditingController.new);
+  }
+
+  FocusNode _quantityFocusNodeFor(Product product) {
+    final key = product.productId ?? product.id ?? identityHashCode(product);
+    return _quantityFocusNodes.putIfAbsent(key, FocusNode.new);
   }
 
   @override
@@ -154,14 +161,21 @@ class HomePageState extends State<HomePage> {
     final existingIndex = cart.indexWhere(
       (item) => (item['product'] as Product).productId == product.productId,
     );
-    final quantityInCart = existingIndex == -1
+    final quantityInCart = (existingIndex == -1)
         ? 0.0
         : cart[existingIndex]['quantity'] as double;
 
-    if (quantity + quantityInCart > product.quantity) {
+    Decimal quantityCart =
+        Decimal.parse(quantity.toString()) +
+        Decimal.parse(quantityInCart.toString());
+    Decimal productToSellQuantity = Decimal.parse(product.quantity.toString());
+    if (quantityCart > productToSellQuantity) {
+      print("QUANTITY + QUANTITYINCART = ${quantity + quantityInCart}");
+      print("PRODUCT QUANTITY = ${product.quantity}");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             'Quantidade indisponível. Você possui '
             '${product.quantity.toStringAsFixed(product.unitType == Unit.amount ? 0 : 2).replaceAll('.', ',')} ${product.getUnitSymbol}',
           ),
@@ -176,6 +190,7 @@ class HomePageState extends State<HomePage> {
         cart[existingIndex]['quantity'] = quantityInCart + quantity;
       } else {
         cart.add({
+          'product_id': product.productId,
           'name': product.name,
           'price': product.price ?? 0.0,
           'unit': product.getUnitSymbol,
@@ -190,8 +205,8 @@ class HomePageState extends State<HomePage> {
   void _addProductFromController(
     Product product,
     TextEditingController controller,
+    FocusNode focusNode,
   ) {
-    FocusScope.of(context).unfocus();
     final normalized = controller.text.trim().replaceAll(',', '.');
     final quantity = double.tryParse(normalized);
 
@@ -206,7 +221,9 @@ class HomePageState extends State<HomePage> {
     }
 
     if (addToCart(product, quantity)) {
+      product.quantity -= quantity;
       controller.clear();
+      focusNode.unfocus();
     }
   }
 
@@ -217,14 +234,16 @@ class HomePageState extends State<HomePage> {
   }
 
   double getTotalValue() {
-    return cart.fold(
-      0.0,
-      (sum, item) => sum + (item['price'] * item['quantity']),
-    );
+    double result = cart.fold(0.0, (sum, item) {
+      print("${item['price']}");
+      return sum + (item['price'] * item['quantity']);
+    });
+    return result;
   }
 
   Future<void> _finalizarVenda() async {
     if (cart.isEmpty) {
+      print("VENDA VAZIA");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('❌ Carrinho vazio! Adicione produtos.'),
@@ -233,10 +252,15 @@ class HomePageState extends State<HomePage> {
       );
       return;
     }
-
+    print("VENDA TEM CHEIA");
+    print("CART AQUI $cart");
     final List<Product> productsToSell = cart.map((item) {
-      return Product.fromMap(item);
+      print("ITEM AQUI $item");
+      Product product = item['product'];
+      print("PRODUTO AQUI $product");
+      return product;
     }).toList();
+    print("PRODUTOS DO CARRINHO $productsToSell");
 
     final success = await _salePointController.fazerVenda(
       productsToSell,
@@ -253,9 +277,12 @@ class HomePageState extends State<HomePage> {
       await OutboundService.refreshProducts();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Venda finalizada com sucesso!'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Text(
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            'Venda finalizada com sucesso!',
+          ),
+          backgroundColor: Colors.green[700],
           duration: Duration(seconds: 3),
         ),
       );
@@ -313,7 +340,11 @@ class HomePageState extends State<HomePage> {
             children: [
               const Text(
                 'Faturamento do Dia',
-                style: TextStyle(color: Colors.white, fontSize: 16),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontSize: 18,
+                ),
               ),
               _buildReturnButton(),
             ],
@@ -336,7 +367,7 @@ class HomePageState extends State<HomePage> {
     return ElevatedButton.icon(
       onPressed: _isReturning ? null : _returnProductsToStock,
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.green,
+        backgroundColor: Colors.green[700],
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -359,7 +390,7 @@ class HomePageState extends State<HomePage> {
     return ValueListenableBuilder<List<Product>>(
       valueListenable: _salePointController.products,
       builder: (context, produtosAtualizados, child) {
-        final List<Product> productList = produtosAtualizados.where((p) => p.quantity > 0).toList();
+        products = produtosAtualizados.where((p) => p.quantity > 0).toList();
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -368,16 +399,14 @@ class HomePageState extends State<HomePage> {
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final availableProducts = productList.where(
-                (p) => p.quantity > 0,
-              );
-              
-              if(availableProducts.isEmpty) {
+              final availableProducts = products.where((p) => p.quantity > 0);
+
+              if (availableProducts.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(
-                    child: Text('Nenhum produto pronto para vender.')
-                  )
+                    child: Text('Nenhum produto pronto para vender.'),
+                  ),
                 );
               }
 
@@ -388,7 +417,7 @@ class HomePageState extends State<HomePage> {
                 );
               }
 
-              if (productList.isEmpty) {
+              if (products.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(child: Text('Nenhum produto em estoque.')),
@@ -397,18 +426,26 @@ class HomePageState extends State<HomePage> {
 
               if (constraints.maxWidth < 700) {
                 return Column(
-                  children: productList.asMap().entries.map((entry) {
+                  children: products.asMap().entries.map((entry) {
                     final product = entry.value;
                     final controller = _quantityControllerFor(product);
+                    final focusNode = _quantityFocusNodeFor(product);
                     return Column(
                       children: [
                         ProductCard(
+                          key: ValueKey(
+                            product.productId ??
+                                product.id ??
+                                identityHashCode(product),
+                          ),
                           product: product,
                           allocation: Allocation.sales,
                           unitType: product.unitType,
-                          onTap: () => {},
+                          controller: controller,
+                          focusNode: focusNode,
+                          onAdd: _addProductFromController,
                         ),
-                        if (entry.key != productList.length - 1)
+                        if (entry.key != products.length - 1)
                           Divider(height: 1, color: Colors.grey[300]),
                       ],
                     );
@@ -416,70 +453,94 @@ class HomePageState extends State<HomePage> {
                 );
               }
 
-              return Column(
-                children: [
-                  // Cabeçalho
-                  Container(
-                    color: Colors.grey[100],
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            style: BorderStyle.solid,
+                            color: Colors.grey[300]!,
+                          ),
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      width: constraints.maxWidth,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: Container(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Produto',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 1,
+                            child: Container(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Preço',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 1,
+                            child: Container(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Estoque',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 1,
+                            child: Container(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Quantidade para venda',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: const Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            'Produto',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                    Column(
+                      children: products.map((p) {
+                        final controller = _quantityControllerFor(p);
+                        final focusNode = _quantityFocusNodeFor(p);
+                        return Container(
+                          padding: EdgeInsets.all(12),
+                          child: ProductRow(
+                            key: ValueKey(
+                              p.productId ?? p.id ?? identityHashCode(p),
+                            ),
+                            product: p,
+                            controller: controller,
+                            focusNode: focusNode,
+                            onAdd: _addProductFromController,
                           ),
-                        ),
-                        Expanded(
-                          flex: 1,
-                          child: Text(
-                            'Preço',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.left,
-                          ),
-                        ),
-                        Expanded(
-                          flex: 1,
-                          child: Text(
-                            'Estoque',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            'Quantidade para venda',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        SizedBox(width: 92),
-                      ],
+                        );
+                      }).toList(),
                     ),
-                  ),
-                  ...productList.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final product = entry.value;
-                    final controller = _quantityControllerFor(product);
-                    return Column(
-                      children: [
-                        ProductRow(
-                          product: product,
-                          controller: controller,
-                          onAdd: () =>
-                              _addProductFromController(product, controller),
-                        ),
-                        if (index != productList.length - 1)
-                          Divider(height: 1, color: Colors.grey[300]),
-                      ],
-                    );
-                  }).toList(),
-                ],
+                  ],
+                ),
               );
             },
           ),
@@ -592,10 +653,24 @@ class HomePageState extends State<HomePage> {
               child: OutlinedButton(
                 onPressed: isLoading
                     ? null
-                    : () => setState(() => cart.clear()),
+                    : () => {
+                        setState(() {
+                          cart.map((c) {
+                            print("ITEM DO CART NO SETSTATE $c");
+                            print("LISTA NO SETSTATE $products");
+                            final Product product = _salePointController.products.value.firstWhere(
+                              (p) => p.productId == c["product_id"],
+                            );
+                            print("PRODUTO NO SETSTATE $product E SUA QUANTIDADE ${product.quantity}");
+                            print("C QUANTITY NO SETSTATE ${c['quantity']} E NOVA QUANTIDADE ${product.quantity}");
+                            product.quantity += c['quantity'];
+                          }).toList();
+                          cart.clear();
+                        }),
+                      },
                 child: const Text(
                   'Limpar',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.black),
                 ),
               ),
             ),
@@ -631,14 +706,13 @@ class HomePageState extends State<HomePage> {
     for (final controller in _quantityControllers.values) {
       controller.dispose();
     }
+    for (final focusNode in _quantityFocusNodes.values) {
+      focusNode.dispose();
+    }
     _scrollController.dispose();
     super.dispose();
   }
 }
-
-// ============================================================
-// COMPONENTES AUXILIARES
-// ============================================================
 
 class ProductCard1 extends StatelessWidget {
   final Product product;
@@ -706,6 +780,7 @@ class ProductCard1 extends StatelessWidget {
                     filled: true,
                     fillColor: Colors.grey[50],
                     border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey[300]!),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
@@ -766,18 +841,20 @@ class _InfoChip extends StatelessWidget {
 class ProductRow extends StatelessWidget {
   final Product product;
   final TextEditingController controller;
-  final VoidCallback onAdd;
+  final void Function(Product, TextEditingController, FocusNode) onAdd;
+  final FocusNode focusNode;
 
   const ProductRow({
     super.key,
     required this.product,
     required this.controller,
     required this.onAdd,
+    required this.focusNode,
   });
 
   String _formatQuantity() {
     if (product.getUnitSymbol == 'un') {
-      return product.quantity.toString();
+      return product.quantity.toStringAsFixed(0);
     } else {
       return (product.quantity).toStringAsFixed(1).replaceAll('.', ',');
     }
@@ -787,23 +864,24 @@ class ProductRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final formattedQuantity = _formatQuantity();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Text(
-                product.name ?? "Produto sem nome",
-                style: const TextStyle(fontWeight: FontWeight.w600),
-                softWrap: true,
-              ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 2,
+          child: Container(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              product.name ?? "Produto sem nome",
+              style: const TextStyle(fontWeight: FontWeight.w600),
+              softWrap: true,
             ),
           ),
-          Expanded(
-            flex: 1,
+        ),
+        Expanded(
+          flex: 2,
+          child: Container(
+            alignment: Alignment.centerLeft,
             child: Text(
               'R\$ ${product.price?.toStringAsFixed(2).replaceAll('.', ',') ?? "0,00"}',
               textAlign: TextAlign.left,
@@ -811,70 +889,97 @@ class ProductRow extends StatelessWidget {
               softWrap: true,
             ),
           ),
-          Expanded(
-            flex: 1,
+        ),
+        Expanded(
+          flex: 2,
+          child: Container(
+            alignment: Alignment.centerLeft,
             child: Text(
               '$formattedQuantity ${product.getUnitSymbol}',
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.w500),
             ),
           ),
-          Expanded(
-            flex: 2,
-            child: TextField(
-              controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [
-                TextInputFormatter.withFunction((oldValue, newValue) {
-                  final isValid = RegExp(
-                    r'^\d*([\.,]\d*)?$',
-                  ).hasMatch(newValue.text);
-                  return isValid ? newValue : oldValue;
-                }),
+        ),
+        Expanded(
+          flex: 2,
+          child: Container(
+            alignment: Alignment.centerLeft,
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      // Se for 'un', só aceita inteiros. Senão, aceita decimais.
+                      product.getUnitSymbol == 'un'
+                          ? FilteringTextInputFormatter.digitsOnly
+                          : TextInputFormatter.withFunction((
+                              oldValue,
+                              newValue,
+                            ) {
+                              final isValid = RegExp(
+                                r'^\d*([\.,]\d*)?$',
+                              ).hasMatch(newValue.text);
+                              return isValid ? newValue : oldValue;
+                            }),
+                    ],
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => onAdd(product, controller, focusNode),
+                    decoration: InputDecoration(
+                      hintText: (product.getUnitSymbol == 'un')
+                          ? 'Ex.: 2'
+                          : 'Ex.: 1,5',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
+                      filled: true,
+                      isDense: true,
+                      fillColor: Colors.grey[50],
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.grey[300]!,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  child: ElevatedButton.icon(
+                    onPressed: () => onAdd(product, controller, focusNode),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[700],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 40),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_shopping_cart, size: 17),
+                    label: const Text('Add'),
+                  ),
+                ),
               ],
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => onAdd(),
-              decoration: InputDecoration(
-                hintText: (product.getUnitSymbol == 'un')
-                    ? 'Ex.: 2'
-                    : 'Ex.: 1,5',
-                suffixText: product.getUnitSymbol,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
-                ),
-                isDense: true,
-                filled: true,
-                fillColor: Colors.grey[50],
-              ),
-              textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 82,
-            child: ElevatedButton.icon(
-              onPressed: onAdd,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green[700],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: const Size(0, 40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              icon: const Icon(Icons.add_shopping_cart, size: 17),
-              label: const Text('Add'),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

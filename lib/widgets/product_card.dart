@@ -5,13 +5,26 @@ import 'package:flutter/services.dart';
 
 class ProductCard extends StatelessWidget
 {
-  final TextEditingController _quantity = TextEditingController();
+  // O controller pertence à tela pai. Assim ele não é recriado quando este
+  // card é reconstruído e o TextField mantém o foco enquanto o teclado abre.
+  final TextEditingController controller;
+  final FocusNode focusNode;
   final Unit _unitType;
   final Allocation _allocation;
   final Product _product;
-  final VoidCallback _onTap;
+  final void Function(Product, TextEditingController, FocusNode) onAdd;
 
-  ProductCard({required Product product, required Allocation allocation, required Unit unitType, required VoidCallback onTap}): _allocation = allocation, _unitType = unitType, _product = product, _onTap = onTap;
+  const ProductCard({
+    super.key,
+    required this.controller,
+    required this.focusNode,
+    required Product product,
+    required Allocation allocation,
+    required Unit unitType,
+    required this.onAdd,
+  }) : _allocation = allocation,
+       _unitType = unitType,
+       _product = product;
 
   String get _unitSymbol 
   {
@@ -71,7 +84,8 @@ class ProductCard extends StatelessWidget
             children: [
               Expanded(
                 child: TextField(
-                  controller: _quantity,
+                  controller: controller,
+                  focusNode: focusNode,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
@@ -83,7 +97,7 @@ class ProductCard extends StatelessWidget
                     }),
                   ],
                   textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _onTap(),
+                  onSubmitted: (_) => onAdd(_product, controller, focusNode),
                   decoration: InputDecoration(
                     labelText: 'Quantidade',
                     hintText: _hintText,
@@ -102,7 +116,7 @@ class ProductCard extends StatelessWidget
               ),
               const SizedBox(width: 10),
               ElevatedButton.icon(
-                onPressed: _onTap,
+                onPressed: () => onAdd(_product, controller, focusNode),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green[700],
                   foregroundColor: Colors.white,
