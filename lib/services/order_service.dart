@@ -8,10 +8,24 @@ import '../database/product_dao.dart';
 import '../database/order_dao.dart';
 import '../domain/order2.dart';
 
+import 'package:intl/intl.dart';
+
 class OrderService {
   
   final ProductDao _productDao = ProductDao();
   final OrderDao _orderDao = OrderDao();  
+
+  Future<List<Order>?> getOrders(int id, DateTime? date) async {
+    String? formatedDate;
+    if(date != null) {
+      formatedDate = DateFormat("yyyy-MM-dd").format(date);
+    } 
+    
+    List<Map<String, dynamic>>? list = await _orderDao.getOrders(id, formatedDate);
+    List<Order>? orders = list?.map((m) => Order.fromMap(m)).toList();
+    return orders;
+  }
+
 
   Future<bool> createOrder({
     required List<Product> products,

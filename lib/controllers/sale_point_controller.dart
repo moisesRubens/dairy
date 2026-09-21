@@ -11,7 +11,7 @@ import '../config/api_config.dart';
 import '../database/product_dao.dart';
 import '../services/outbound_service.dart';
 import '../services/order_service.dart';
-import '../domain/order.dart';
+import '../domain/order2.dart';
 
 class SalePointController extends ChangeNotifier {
   final ProductDao _productDao = ProductDao();
@@ -42,9 +42,11 @@ class SalePointController extends ChangeNotifier {
   ValueNotifier<List<Product>> get products => _products;
   ValueNotifier<List<Order>> get orders => _orders;
 
-  Future<bool> getOrders() async {
-    //_orders = _orderService.getLocalOrders();
-    return false;
+  Future<void> getOrders(int id, DateTime? date) async {
+    List<Order>? list = await _orderService.getOrders(id, date);
+    if(list != null) {
+      _orders.value = list;
+    }
   }
 
   Future<bool> createOutbound(

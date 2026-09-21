@@ -7,7 +7,29 @@ import 'database_provider.dart';
 class OrderDao {
   final DatabaseProvider _db = DatabaseProvider();
 
-  
+  Future<List<Map<String, dynamic>>?> getOrders(int id, String? date) async {
+    final db = await _db.db;
+    
+    String where = "spo.sale_point_id = ?";
+    final args = <dynamic>[id];
+    
+    if(date != null) {
+      where += " AND spo.date = ?";
+      args.add(date);
+    }
+
+    final result = await db.rawQuery('''
+      SELECT o.*
+      FROM orders o
+      JOIN sale_point_order spo
+        ON spo.order_id = o.id
+      WHERE $where
+    ''', args);
+
+    return result;
+  }
+
+
   Future<void> saveOrder(Order order) async {
     final db = await _db.db;
 

@@ -5,11 +5,10 @@ import 'database_provider.dart';
 
 class ProductDao {
   final DatabaseProvider _database = DatabaseProvider();
+  
 
-    /// Salva um produto no banco.
-  /// - Se já existe (mesmo `produtoId`), atualiza.
-  /// - Se não existe, insere.
-  /// Retorna o `id` local (SQLite) do produto.
+  
+
   Future<int> saveProduct(Product product) async {
     final db = await _database.db;
 

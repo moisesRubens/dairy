@@ -1,7 +1,10 @@
+import 'package:dairy/controllers/sale_point_controller.dart';
 import 'package:flutter/material.dart';
 import '../controllers/order_controller.dart';
 import '../domain/order2.dart';
 import '../domain/order_item.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -22,6 +25,7 @@ class OrdersPage extends StatefulWidget {
 
 class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
   final OrderController _orderController;
+  late SalePointController _salePointController;
   final TextEditingController _searchController = TextEditingController();
   DateTime? _selectedDate;
   String? _selectedStatus;
@@ -31,6 +35,7 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
   static const List<String> _statusOptions = ['Pendente', 'Finalizado', 'Desconto'];
 
   _OrdersPageState() : _orderController = OrderController();
+
 
   @override
   void initState() 
@@ -70,6 +75,16 @@ class _OrdersPageState extends State<OrdersPage> with WidgetsBindingObserver {
         }
       });
     }
+    _salePointController = context.read<SalePointController>();
+    refreshOrders();
+  }
+
+  Future<void> refreshOrders({int? id, DateTime? date}) async {
+    if(id == null) {
+      final prefs = await SharedPreferences.getInstance();
+      id = prefs.getInt('sale_point_id');
+    }
+    _salePointController.getOrders(id!, date);
   }
 
   Future<void> _loadOrders() async {
