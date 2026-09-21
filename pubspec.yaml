@@ -36,14 +36,17 @@ dependencies:
   cupertino_icons: ^1.0.8
   go_router: ^14.7.2
   http: ^1.2.1
+  decimal: ^3.0.0
   # Para guardar o Token e dados do SalePoint localmente
   shared_preferences: ^2.2.3
   jwt_decoder: ^2.0.1
   sqflite: ^2.3.0
   sqflite_common_ffi: ^2.3.4+1  # ESSENCIAL PARA WEB!
   sqflite_common_ffi_web: ^1.1.1
-  path_provider: ^2.1.5          # ESSENCIAL!
+  path_provider: ^2.1.5 
+  provider: ^6.1.2
   path: ^1.9.1
+  intl: ^0.20.3
 
 
 dev_dependencies:

@@ -1,26 +1,156 @@
+import 'package:dairy/Enums/product_enum.dart';
 import 'package:sqflite/sqflite.dart';
 import '../domain/product.dart';
-import 'db.dart';
+import 'database_provider.dart';
 
 class ProductDao {
+  final DatabaseProvider _database = DatabaseProvider();
+  
 
-  // ============================================================
-  // INSERIR PRODUTO
-  // ============================================================
-  Future<int> insertProduct(Product product) async {
-    final db = await DB.instance.database;
+  
+
+  Future<int> saveProduct(Product product) async {
+    final db = await _database.db;
+
+    final map = <String, dynamic>{
+      'produtoId': product.productId, // 👈 ID do backend
+      'name': product.name,
+      'price': product.price,
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+
+    // 👇 Zera as três colunas de unidade e seta só a correta
+    map['amount'] = null;
+    map['kg'] = null;
+    map['liters'] = null;
+
+    switch (product.unitType) {
+      case Unit.amount:
+        map['amount'] = product.quantity;
+        break;
+      case Unit.kg:
+        map['kg'] = product.quantity;
+        break;
+      case Unit.liters:
+        map['liters'] = product.quantity;
+        break;
+    }
+
+    // Verifica se já existe
+    final existing = await db.query(
+      'produtos',
+      where: 'produtoId = ?',
+      whereArgs: [product.productId],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      final localId = existing.first['id'] as int;
+      await db.update(
+        'produtos',
+        map,
+        where: 'id = ?',
+        whereArgs: [localId],
+      );
+      print('🔄 Produto "${product.name}" atualizado (id local: $localId)');
+      return localId;
+    } else {
+      final newId = await db.insert('produtos', map);
+      print('✅ Produto "${product.name}" inserido (id local: $newId)');
+      return newId;
+    }
+  }
+
+
+  Future<List<Product>> getAllProducts2 () async {
+    Database db = await _database.db;
+
+    final today = DateTime.now();
+    final startOfDay = DateTime(today.year, today.month, today.day).toIso8601String();
+    final endOfDay = DateTime(today.year, today.month, today.day, 23, 59, 59, 999).toIso8601String();
+
+    List<Map<String, dynamic>> maps = await db.rawQuery(
+      "select * from products where date >= ? and date <= ? order by date desc",
+      [startOfDay, endOfDay],
+    );
+    List<Product> productsList = [];
+
+    for (Map<String, dynamic> m in maps) 
+    {
+      productsList.add(Product.fromMap(m));
+    }
+    return productsList;
+  }
+
+  Future<int> addProduct(Product product) async {
+    Database db = await _database.db;
+    return await db.insert("products", product.toMap());
+  } 
+
+  Future<void> deleteAllProducts2() async {
+    Database db = await _database.db;
+
+    await db.rawDelete("delete from products");
+  }
+
+  Future<Product?> getProduct2({int? productId, int? id}) async 
+  {
+    if (id == null && productId == null) 
+    {
+        throw ArgumentError('Informe ao menos id ou productId');
+    }
+    Database db = await _database.db;
+
+    List result = await db.query("products", where: id != null 
+      ?"id = ?"
+      :"product_id = ?",
+       whereArgs: id != null
+       ?[id] :[productId],
+       limit: 1);
+
+    if(result.isEmpty) 
+    {
+      return null;
+    } 
+    return Product.fromMap(result.first);
+  }
+
+  Future<int> updateQuantity2(Product product) async {
+    Database db = await _database.db;
     
+    int updated = await db.update("products", product.toMap(), where: "id = ?", whereArgs: [product.id]);
+    return updated;
+  }
+
+  Future<void> addProductsList(List<Product> products) async {
+    Database db = await _database.db;
+
+    for (Product p in products) {
+      await db.insert("products", p.toMap());
+    } 
+  }
+
+  Future<int> insertProduct(Product product) async {
+    final db = await _database.db;
+
     final Map<String, dynamic> map = {
       'produtoId': product.id,  // ← id do backend
       'name': product.name,
       'price': product.price,
-      'amount': product.amount ?? 0,
-      'kg': product.kg ?? 0.0,
-      'liters': product.liters ?? 0.0,
       'updatedAt': DateTime.now().toIso8601String(),
     };
-
-    // Verifica se já existe pelo produtoId (id do backend)
+    switch(product.unitType)
+    {
+      case Unit.amount:
+        map['amount'] = product.quantity;
+        break;
+      case Unit.kg:
+        map['kg'] = product.quantity;
+        break;
+      case Unit.liters:
+        map['liters'] = product.quantity;
+    }
+    
     final existing = await db.query(
       'produtos',
       where: 'produtoId = ?',
@@ -53,82 +183,63 @@ class ProductDao {
     print('📦 ${products.length} produtos salvos no banco');
   }
 
-  // ============================================================
-  // BUSCAR TODOS OS PRODUTOS
-  // ============================================================
-  Future<List<Product>> getAllProducts() async {
-    final db = await DB.instance.database;
-    
+
+  Future<List<Product>> getAllProducts() async 
+  {
+    final db = await _database.db;
     final List<Map<String, dynamic>> results = await db.query(
       'produtos',
       orderBy: 'name ASC',
     );
-
-    return results.map((map) => Product(
-      id: map['produtoId'] as int?,  // ← id do backend
-      name: map['name'] as String,
-      price: map['price'] as double?,
-      amount: map['amount'] as int?,
-      kg: map['kg'] as double?,
-      liters: map['liters'] as double?,
-    )).toList();
+    return results.map((map) => Product.fromMap(map)).toList();
   }
 
-  // ============================================================
-  // BUSCAR PRODUTO POR ID LOCAL (SQLite)
-  // ============================================================
-  Future<Product?> getProductByLocalId(int localId) async {
-    final db = await DB.instance.database;
-    
-    final List<Map<String, dynamic>> results = await db.query(
-      'produtos',
-      where: 'id = ?',  // ← id do SQLite
-      whereArgs: [localId],
+  Future<Product?> getProductById(int id) async {
+    Database db = await _database.db;
+    List<Map<String, dynamic>> product_map = await db.query(
+      "products",
+      where: "id = ?",
+      whereArgs: [id]
     );
 
+    if(product_map.isEmpty) {
+      return null;
+    }
+    Product product = Product.fromMap(product_map.first);
+    return product;
+  }
+  
+  Future<List<Product>?> getProductByLocalId(List<int> idsList) async 
+  {
+    final db = await _database.db;
+    final List<Map<String, dynamic>> results = await db.query(
+      'produtos',
+      where: 'id IN = ?',  
+      whereArgs: [idsList],
+    );
     if (results.isEmpty) return null;
-
-    final map = results.first;
-    return Product(
-      id: map['produtoId'] as int?,  // ← id do backend
-      name: map['name'] as String,
-      price: map['price'] as double?,
-      amount: map['amount'] as int?,
-      kg: map['kg'] as double?,
-      liters: map['liters'] as double?,
-    );
+    return results.map((map) => Product.fromMap(map)).toList();
   }
 
-  // ============================================================
-  // BUSCAR PRODUTO POR ID DO BACKEND
-  // ============================================================
-  Future<Product?> getProductByBackendId(int backendId) async {
-    final db = await DB.instance.database;
+
+  Future<Product?> getProductByBackendId(int backendId) async 
+  {
+    final db = await _database.db;
     
     final List<Map<String, dynamic>> results = await db.query(
       'produtos',
-      where: 'produtoId = ?',  // ← id do backend
+      where: 'produtoId = ?',  
       whereArgs: [backendId],
     );
-
     if (results.isEmpty) return null;
-
-    final map = results.first;
-    return Product(
-      id: map['produtoId'] as int?,
-      name: map['name'] as String,
-      price: map['price'] as double?,
-      amount: map['amount'] as int?,
-      kg: map['kg'] as double?,
-      liters: map['liters'] as double?,
-    );
+    return Product.fromMap(results.first);
   }
 
   // ============================================================
   // BUSCAR PRODUTOS POR NOME
   // ============================================================
   Future<List<Product>> searchProducts(String query) async {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     
     final List<Map<String, dynamic>> results = await db.query(
       'produtos',
@@ -137,31 +248,31 @@ class ProductDao {
       orderBy: 'name ASC',
     );
 
-    return results.map((map) => Product(
-      id: map['produtoId'] as int?,
-      name: map['name'] as String,
-      price: map['price'] as double?,
-      amount: map['amount'] as int?,
-      kg: map['kg'] as double?,
-      liters: map['liters'] as double?,
-    )).toList();
+    return results.map((map) => Product.fromMap(map)).toList();
   }
 
-  // ============================================================
-  // 🔥 ATUALIZAR PRODUTO COMPLETO (USADO PELO ORDER SERVICE)
-  // ============================================================
-  Future<void> updateProduct(Product product) async {
-    try {
-      final db = await DB.instance.database;
-
-      final updates = <String, dynamic>{
+  Future<void> updateProduct(Product product) async 
+  {
+    try 
+    {
+      final db = await _database.db;
+      final updates = <String, dynamic>
+      {
         'name': product.name,
         'price': product.price,
-        'amount': product.amount ?? 0,
-        'kg': product.kg ?? 0.0,
-        'liters': product.liters ?? 0.0,
         'updatedAt': DateTime.now().toIso8601String(),
       };
+      switch(product.unitType)
+      {
+        case Unit.amount:
+          updates['amount'] = product.quantity;
+          break;
+        case Unit.kg:
+          updates['kg'] = product.quantity;
+          break;
+        case Unit.liters:
+          updates['liters'] = product.quantity;
+      }
 
       // 🔥 ATUALIZA PELO ID DO SQLITE
       // Precisamos encontrar o ID local do SQLite primeiro
@@ -194,7 +305,7 @@ class ProductDao {
   // ============================================================
   Future<bool> deleteProduct(int backendId) async {
     try {
-      final db = await DB.instance.database;
+      final db = await _database.db;
       await db.delete(
         'produtos',
         where: 'produtoId = ?',
@@ -212,7 +323,7 @@ class ProductDao {
   // DELETAR TODOS
   // ============================================================
   Future<void> deleteAll() async {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     await db.delete('produtos');
     print('🗑️ Todos os produtos removidos!');
   }
@@ -221,7 +332,7 @@ class ProductDao {
   // CONTAR PRODUTOS
   // ============================================================
   Future<int> countProducts() async {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM produtos');
     return Sqflite.firstIntValue(result) ?? 0;
   }
@@ -230,7 +341,7 @@ class ProductDao {
   // VERIFICAR SE PRODUTO EXISTE
   // ============================================================
   Future<bool> productExists(int backendId) async {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     final result = await db.query(
       'produtos',
       where: 'produtoId = ?',
@@ -244,7 +355,7 @@ class ProductDao {
 // ============================================================
 Future<bool> updateQuantity(int backendId, int newAmount) async {
   try {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     
     // Primeiro encontra o ID local pelo backendId
     final existing = await db.query(
@@ -282,7 +393,7 @@ Future<bool> updateQuantity(int backendId, int newAmount) async {
 // ============================================================
 Future<bool> updateKg(int backendId, double newKg) async {
   try {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     
     final existing = await db.query(
       'produtos',
@@ -319,7 +430,7 @@ Future<bool> updateKg(int backendId, double newKg) async {
 // ============================================================
 Future<bool> updateLiters(int backendId, double newLiters) async {
   try {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     
     final existing = await db.query(
       'produtos',

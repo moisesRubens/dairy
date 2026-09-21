@@ -6,52 +6,55 @@ import 'package:dairy/config/api_config.dart';
 import 'package:flutter/material.dart';
 import '../database/product_dao.dart';
 import '../domain/outbound.dart';
+import 'package:intl/intl.dart';
+import '../Enums/product_enum.dart';
 
 class OutboundService {
-  static ValueNotifier<List<Product>> saleProductsNotifier = ValueNotifier<List<Product>>([]);
+  final dao = ProductDao();
+  static ValueNotifier<List<Product>> saleProductsNotifier =
+      ValueNotifier<List<Product>>([]);
   static List<Product> get saleProducts => saleProductsNotifier.value;
 
-  // 🔥 NOTIFIER PARA TODOS OS PONTOS DE VENDA
-  static ValueNotifier<List<Map<String, dynamic>>> allSalePointsNotifier = 
-      ValueNotifier<List<Map<String, dynamic>>>([]);
-  
   // 🔥 NOTIFIER PARA O PONTO SELECIONADO (atual)
-  static ValueNotifier<List<Outbound>> outboundsNotifier = ValueNotifier<List<Outbound>>([]);
-  static ValueNotifier<String> salePointName = ValueNotifier<String>('Ponto de Venda');
+  static ValueNotifier<List<Outbound>> outboundsNotifier =
+      ValueNotifier<List<Outbound>>([]);
+  static ValueNotifier<String> salePointName = ValueNotifier<String>(
+    'Ponto de Venda',
+  );
   static ValueNotifier<double> totalSold = ValueNotifier<double>(0.0);
   static ValueNotifier<int> totalItems = ValueNotifier<int>(0);
 
-  
-  void _processOutboundsResponse(List<dynamic> data) {
+  void _processOutboundsResponse(
+    List<dynamic> data,
+    ValueNotifier<List<Map<String, dynamic>>> salesPoints,
+  ) {
     final List<Map<String, dynamic>> allPoints = [];
-    
+
     for (var item in data) {
       final name = item['sale_point_name'] ?? 'Ponto de Venda';
       final outboundsJson = item['outbounds'] ?? [];
-      
-      // 🔥 CONVERTE CADA ITEM PARA OUTBOUND
+
       final List<Outbound> outboundList = [];
       for (var json in outboundsJson) {
         outboundList.add(Outbound.fromMap(json));
       }
-      
-      // 🔥 CALCULA O TOTAL E A PORCENTAGEM GERAL
+
       double totalValue = 0.0;
       double totalTaken = 0.0;
       double totalSold = 0.0;
-      
+
       for (var outbound in outboundList) {
         totalValue += outbound.totalValue;
         totalTaken += outbound.takenQuantity;
         totalSold += outbound.soldQuantity;
       }
-      
+
       // 🔥 PORCENTAGEM GERAL DE VENDAS
       double overallPercentage = 0.0;
       if (totalTaken > 0) {
         overallPercentage = (totalSold / totalTaken) * 100;
       }
-      
+
       allPoints.add({
         'name': name,
         'outbounds': outboundList,
@@ -62,9 +65,9 @@ class OutboundService {
         'overallPercentage': overallPercentage,
       });
     }
-    
-    allSalePointsNotifier.value = allPoints;
-    
+
+    salesPoints.value = allPoints;
+
     if (allPoints.isNotEmpty) {
       final firstPoint = allPoints[0];
       salePointName.value = firstPoint['name'] as String;
@@ -78,10 +81,9 @@ class OutboundService {
     }
   }
 
-  // ============================================================
-  // 🔥 CARREGAR TODOS OS OUTBOUNDS DO DIA
-  // ============================================================
-  Future<void> loadAllOutbounds() async {
+  Future<void> loadAllOutbounds(
+    ValueNotifier<List<Map<String, dynamic>>> salesPoints,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('access_token');
@@ -91,65 +93,63 @@ class OutboundService {
         return;
       }
 
-      // Data atual
       final dateParam = DateTime.now().toIso8601String().split('T')[0];
 
-      final url = Uri.parse(
-        '${ApiConfig.baseUrl}/outbounds/?date=$dateParam'
-      );
+      final url = Uri.parse('${ApiConfig.baseUrl}/outbounds/?date=$dateParam');
 
       debugPrint('🌐 Buscando outbounds: $url');
 
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw Exception('Timeout ao buscar outbounds');
-        },
-      );
+      final response = await http
+          .get(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw Exception('Timeout ao buscar outbounds');
+            },
+          );
 
       debugPrint('📡 Status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        _processOutboundsResponse(data);
-        debugPrint('📋 ${allSalePointsNotifier.value.length} pontos de venda carregados');
+        _processOutboundsResponse(data, salesPoints);
       } else {
-        debugPrint('❌ Erro ao buscar outbounds: ${response.statusCode} - ${response.body}');
-        allSalePointsNotifier.value = [];
+        debugPrint(
+          '❌ Erro ao buscar outbounds: ${response.statusCode} - ${response.body}',
+        );
+        salesPoints.value = [];
         outboundsNotifier.value = [];
       }
     } catch (e) {
       debugPrint('❌ Erro ao carregar outbounds: $e');
-      allSalePointsNotifier.value = [];
+      salesPoints.value = [];
       outboundsNotifier.value = [];
     }
   }
 
-  // ============================================================
-  // 🔥 CARREGAR OUTBOUNDS POR DATA ESPECÍFICA
-  // ============================================================
-  Future<void> loadOutboundsByDate(String date) async {
+  Future<List<Product>?> loadOutboundsByDate(String? date) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('access_token');
 
       if (token == null) {
         debugPrint("❌ Token não encontrado");
-        return;
+        return null;
       }
 
-      final url = Uri.parse(
-        '${ApiConfig.baseUrl}/outbounds/?date=$date'
-      );
+      DateTime dateTime = (date != null)
+          ? DateTime.parse(date)
+          : DateTime.now();
+      String dateFormat = DateFormat("yyyy-MM-dd").format(dateTime);
 
-      debugPrint('🌐 Buscando outbounds por data: $url');
+      final url = Uri.parse('${ApiConfig.baseUrl}/outbounds/?date=$dateFormat');
 
       final response = await http.get(
         url,
@@ -159,28 +159,48 @@ class OutboundService {
           'Authorization': 'Bearer $token',
         },
       );
-
+      print("STATUS CODE AGR: ${response.statusCode}");
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        _processOutboundsResponse(data);
-        debugPrint('📋 ${allSalePointsNotifier.value.length} pontos de venda carregados para data: $date');
+        final decode = jsonDecode(response.body) as List;
+        final List<Map<String, dynamic>> data = decode.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+        print("DADOS: $data");
+        final rawOutbounds = data
+          .expand((point) => (point['outbounds'] as List? ?? const []))
+          .map((item) => Map<String, dynamic>.from(item as Map));
+        final List<Product> outbounds = rawOutbounds.map((item) {
+        final unit = switch (item['unidade']) {
+          'kg' => Unit.kg,
+          'liters' => Unit.liters,
+          _ => Unit.amount,
+        };
+
+        return Product(
+          id: item['id'] as int?,
+          productId: item['product_id'] as int?,
+          name: item['name'] as String?,
+          price: (item['price'] as num?)?.toDouble() ?? 0.0,
+          unitType: unit,
+          quantity: (item['remaining_quantity'] as num?)?.toDouble() ??
+              (item['taken_quantity'] as num?)?.toDouble() ??
+              0.0,
+        );
+      }).toList();
+        print("RETIRADAS: $outbounds");
+        return outbounds;
       } else {
         debugPrint('❌ Erro ao buscar outbounds: ${response.statusCode}');
-        allSalePointsNotifier.value = [];
-        outboundsNotifier.value = [];
+        throw Exception;
       }
     } catch (e) {
-      debugPrint('❌ Erro ao carregar outbounds por data: $e');
-      allSalePointsNotifier.value = [];
-      outboundsNotifier.value = [];
+      debugPrint('❌ Erro ao carregar outbounds: $e');
     }
   }
 
-  // ============================================================
-  // 🔥 SELECIONAR UM PONTO DE VENDA ESPECÍFICO
-  // ============================================================
-  static void selectSalePoint(int index) {
-    final allPoints = allSalePointsNotifier.value;
+  static void selectSalePoint(
+    int index,
+    ValueNotifier<List<Map<String, dynamic>>> salesPoints,
+  ) {
+    final allPoints = salesPoints.value;
     if (index >= 0 && index < allPoints.length) {
       final point = allPoints[index];
       salePointName.value = point['name'] as String;
@@ -205,10 +225,12 @@ class OutboundService {
   // ============================================================
   // 🔥 MÉTODO ESTÁTICO PARA RECARREGAR (BOTTOM NAVIGATION)
   // ============================================================
-  static Future<void> refreshOutbounds() async {
+  static Future<void> refreshOutbounds(
+    ValueNotifier<List<Map<String, dynamic>>> salesPoints,
+  ) async {
     try {
       final service = OutboundService();
-      await service.loadAllOutbounds();
+      await service.loadAllOutbounds(salesPoints);
     } catch (e) {
       debugPrint('❌ Erro ao recarregar outbounds: $e');
     }
@@ -220,64 +242,45 @@ class OutboundService {
   static Future<void> loadProductsFromLocal() async {
     try {
       final dao = ProductDao();
-      final products = await dao.getAllProducts();
+      final products = await dao.getAllProducts2();
       saleProductsNotifier.value = products;
-      
-      print('📊 ${products.length} produtos carregados do banco (retiradas):');
-      for (var p in products) {
-        if (p.amount != null && p.amount != -1) {
-          print('   - ${p.name}: amount=${p.amount} un');
-        } else if (p.kg != null && p.kg != -1) {
-          print('   - ${p.name}: kg=${p.kg}');
-        } else if (p.liters != null && p.liters != -1) {
-          print('   - ${p.name}: liters=${p.liters}');
-        } else {
-          print('   - ${p.name}: SEM QUANTIDADE');
-        }
-      }
     } catch (e) {
       print('❌ Erro ao carregar produtos do banco: $e');
       saleProductsNotifier.value = [];
     }
   }
 
-  // ============================================================
-  // 🔥 CRIAR OUTBOUND (RETIRADA)
-  // ============================================================
-  Future<bool> createOutbound(Map<Product, double> outboundsQuantity, {String? observacao}) async {
+  Future<bool> createOutbound(
+    //ValueNotifier<List<Product>> stockProducts,
+    List<Product>? products,
+    double quantity,
+    String? obs,
+  ) async {
+    if (products == null) {
+      return false;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
-    final salePointId = prefs.getInt('sale_point_id'); 
+    final salePointId = prefs.getInt('sale_point_id');
 
     if (token == null || salePointId == null) {
-      debugPrint("❌ Token ou sale_point_id não encontrado");
       return false;
     }
 
     final url = Uri.parse('${ApiConfig.baseUrl}/auth/$salePointId/outbounds');
+    print('🟡 [5] URL: $url');
 
-    final List<Map<String, dynamic>> produtosJson = outboundsQuantity.entries.map((entry) {
-      Product product = entry.key;
-      String unit; 
-      
-      if (product.amount != -1) {
-        unit = "amount"; 
-      } else if (product.kg != -1) {
-        unit = "kg";
-      } else {
-        unit = "liters"; 
-      }
-
-      return {
-        "product_id": product.id,
-        "quantidade": entry.value,
-        "unidade": unit, 
-      };
+    final List<Map<String, dynamic>> produtosJson = products.map((p) {
+      p.quantity = quantity;
+      return p.toJson();
     }).toList();
+
+    print('🟡 [6] Payload: $produtosJson');
 
     final Map<String, dynamic> requestBody = {
       "produtos": produtosJson,
-      "observacao": observacao ?? "", 
+      "observacao": obs ?? "",
     };
 
     try {
@@ -291,50 +294,12 @@ class OutboundService {
         body: json.encode(requestBody),
       );
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        // 1. Atualiza o notifier (memória)
-        final currentList = List<Product>.from(saleProductsNotifier.value);
-
-        outboundsQuantity.forEach((product, quantity) {
-          final existingIndex = currentList.indexWhere((p) => p.id == product.id);
-          
-          if (existingIndex != -1) {
-            final p = currentList[existingIndex];
-            if (p.amount != -1) {
-              p.amount = (p.amount ?? 0) + quantity.toInt();
-            } else if (p.kg != -1) {
-              p.kg = (p.kg ?? 0.0) + quantity;
-            } else if (p.liters != -1) {
-              p.liters = (p.liters ?? 0.0) + quantity;
-            }
-          } else {
-            final newProduct = Product(
-              id: product.id,
-              name: product.name,
-              price: product.price,
-              amount: product.amount != -1 ? quantity.toInt() : -1,
-              kg: product.kg != -1 ? quantity : -1,
-              liters: product.liters != -1 ? quantity : -1,
-            );
-            currentList.add(newProduct);
-          }
-        });
-
-        saleProductsNotifier.value = currentList;
-
-        // 2. SALVA NO BANCO LOCAL
-        await _saveOutboundToLocal(outboundsQuantity);
-
-        // 3. RECARREGA OS OUTBOUNDS
-        await loadAllOutbounds();
-
-        return true;
-      } else {
-        debugPrint("❌ Erro na API: ${response.statusCode} - ${response.body}");
-        return false;
-      }
+      print('🟡 [7] Status HTTP: ${response.statusCode}');
+      print('🟡 [8] Body: ${response.body}');
+      print("STATUS CODE DO RESPONSE: $response");
+      return (response.statusCode == 201 || response.statusCode == 200);
     } catch (e) {
-      debugPrint("❌ Erro de conexão ao criar saída: $e");
+      print('🔴 [11] Exceção: $e');
       return false;
     }
   }
@@ -342,84 +307,26 @@ class OutboundService {
   // ============================================================
   // 🔥 SALVAR OUTBOUND NO BANCO LOCAL
   // ============================================================
-  static Future<void> _saveOutboundToLocal(Map<Product, double> outboundsQuantity) async {
+  static Future<void> _saveOutboundToLocal(
+    Map<Product, double> outboundsQuantity,
+  ) async {
     try {
       final dao = ProductDao();
-      
+
       print('📝 SALVANDO RETIRADA NO BANCO:');
-      
+
       for (var entry in outboundsQuantity.entries) {
         final product = entry.key;
         final double quantity = entry.value;
 
-        print('   📦 ${product.name}: retirada de $quantity');
-
-        final existing = await dao.getProductByLocalId(product.id!);
-        
-        if (existing != null) {
-          if (product.amount != -1) {
-            final newAmount = (existing.amount ?? 0) + quantity.toInt();
-            await dao.updateQuantity(product.id!, newAmount);
-            print('   🔄 "${product.name}" atualizado: ${existing.amount} → $newAmount un');
-          } else if (product.kg != -1) {
-            final newKg = (existing.kg ?? 0.0) + quantity;
-            await dao.updateKg(product.id!, newKg);
-            print('   🔄 "${product.name}" atualizado: ${existing.kg} → $newKg kg');
-          } else if (product.liters != -1) {
-            final newLiters = (existing.liters ?? 0.0) + quantity;
-            await dao.updateLiters(product.id!, newLiters);
-            print('   🔄 "${product.name}" atualizado: ${existing.liters} → $newLiters L');
-          }
+        Product? p = await dao.getProductById(product.productId!);
+        p?.quantity = quantity;
+        if (p != null) {
+          await dao.updateProduct(p);
         } else {
-          if (product.amount != -1) {
-            final productWithAmount = Product(
-              id: product.id,
-              name: product.name,
-              price: product.price,
-              amount: quantity.toInt(),
-              kg: -1,
-              liters: -1,
-            );
-            await dao.insertProduct(productWithAmount);
-            print('   ✅ "${product.name}" inserido com amount=${quantity.toInt()} un');
-          } else if (product.kg != -1) {
-            final productWithKg = Product(
-              id: product.id,
-              name: product.name,
-              price: product.price,
-              amount: -1,
-              kg: quantity,
-              liters: -1,
-            );
-            await dao.insertProduct(productWithKg);
-            print('   ✅ "${product.name}" inserido com kg=$quantity');
-          } else if (product.liters != -1) {
-            final productWithLiters = Product(
-              id: product.id,
-              name: product.name,
-              price: product.price,
-              amount: -1,
-              kg: -1,
-              liters: quantity,
-            );
-            await dao.insertProduct(productWithLiters);
-            print('   ✅ "${product.name}" inserido com liters=$quantity');
-          }
+          await dao.addProduct(product);
         }
       }
-      
-      final allProducts = await dao.getAllProducts();
-      print('📊 BANCO APÓS SALVAR: ${allProducts.length} produtos:');
-      for (var p in allProducts) {
-        if (p.amount != -1) {
-          print('   - ${p.name}: amount=${p.amount} un');
-        } else if (p.kg != -1) {
-          print('   - ${p.name}: kg=${p.kg}');
-        } else if (p.liters != -1) {
-          print('   - ${p.name}: liters=${p.liters}');
-        }
-      }
-      
     } catch (e) {
       print('❌ Erro ao salvar retirada no banco: $e');
       throw e;
@@ -429,24 +336,26 @@ class OutboundService {
   // ============================================================
   // 🔥 LIMPAR HISTÓRICO
   // ============================================================
-  static Future<void> clearLocalHistory() async {
+  static Future<void> clearLocalHistory(
+    ValueNotifier<List<Map<String, dynamic>>> salesPoints,
+  ) async {
     try {
       final dao = ProductDao();
       await dao.deleteAll();
       saleProductsNotifier.value = [];
       outboundsNotifier.value = [];
-      allSalePointsNotifier.value = [];
+      salesPoints.value = [];
       print('🗑️ Histórico de retiradas limpo');
     } catch (e) {
       print('❌ Erro ao limpar histórico: $e');
     }
   }
-  
-  
+
   static Future<void> refreshProducts() async {
     try {
+      print("DENTRO DE REFRESH PRODUCTS");
       final dao = ProductDao();
-      final products = await dao.getAllProducts();
+      final products = await dao.getAllProducts2();
       saleProductsNotifier.value = products;
       print('🔄 Produtos recarregados do banco: ${products.length} itens');
 
@@ -461,10 +370,12 @@ class OutboundService {
   // ============================================================
   // 🔥 RECARREGAR TODOS OS DADOS (PRODUTOS + OUTBOUNDS)
   // ============================================================
-  static Future<void> refreshAll() async {
+  static Future<void> refreshAll(
+    ValueNotifier<List<Map<String, dynamic>>> salesPoints,
+  ) async {
     try {
       await refreshProducts();
-      await refreshOutbounds();
+      await refreshOutbounds(salesPoints);
       print('🔄 Todos os dados recarregados');
     } catch (e) {
       print('❌ Erro ao recarregar todos os dados: $e');

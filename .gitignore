@@ -46,3 +46,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 lib/config/api_config.dart
+dairy.debug
+dairy_database.db
+# Widget Preview related
+.widget_preview/

@@ -1,27 +1,78 @@
+import 'package:dairy/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../Enums/product_enum.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/product.dart';
-import '../domain/outbound.dart';
+import '../domain/sale_point.dart';
 import '../config/api_config.dart';
 import '../database/product_dao.dart';
 import '../services/outbound_service.dart';
 import '../services/order_service.dart';
-import '../domain/order.dart';
+import '../domain/order2.dart';
 
-class SalePointController {
+class SalePointController extends ChangeNotifier {
   final ProductDao _productDao = ProductDao();
   final OrderService _orderService = OrderService();
   final OutboundService _outboundService = OutboundService();
-  
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
   final ValueNotifier<String?> errorMessage = ValueNotifier<String?>(null);
+
+  final AuthService _authService;
+  bool _isAdmin = false;
+  int? _salePointId;
+
+  bool get isAdmin => _isAdmin;
+  int? get salePointId => _salePointId;
+
+  final ValueNotifier<List<Map<String, dynamic>>> _salesPoints =
+      ValueNotifier<List<Map<String, dynamic>>>([]);
+  final ValueNotifier<List<Product>> _products = ValueNotifier<List<Product>>(
+    [],
+  );
+  final ValueNotifier<List<Order>> _orders = ValueNotifier<List<Order>>([]);
+
+  SalePointController() : _authService = AuthService() {
+    getSalePointId();
+  }
+
+  ValueNotifier<List<Map<String, dynamic>>> get salesPoints => _salesPoints;
+  ValueNotifier<List<Product>> get products => _products;
+  ValueNotifier<List<Order>> get orders => _orders;
+
+  Future<void> getOrders(int id, DateTime? date) async {
+    List<Order>? list = await _orderService.getOrders(id, date);
+    if(list != null) {
+      _orders.value = list;
+    }
+  }
+
+  Future<bool> createOutbound(
+    List<Product> productsToRetire,
+    double quantity,
+    String? obs,
+  ) async {
+    bool result = await _outboundService.createOutbound(
+      productsToRetire,
+      quantity,
+      obs,
+    );
+    if (result) await loadOutboundsByDate();
+    return result;
+  }
+
+  Future<void> getSalePointId() async {
+    _salePointId = await _authService.getCurrentSalePointId();
+    if (_salePointId != null) _admVerification(_salePointId!);
+    notifyListeners();
+  }
 
   Future<void> loadAllOutbounds() async {
     try {
       isLoading.value = true;
-      await _outboundService.loadAllOutbounds();
+      await _outboundService.loadAllOutbounds(_salesPoints);
     } catch (e) {
       errorMessage.value = 'Erro ao carregar outbounds: $e';
       debugPrint('❌ Erro em loadAllOutbounds: $e');
@@ -30,13 +81,43 @@ class SalePointController {
     }
   }
 
-  // ============================================================
-  // 🔥 CARREGAR OUTBOUNDS POR DATA
-  // ============================================================
-  Future<void> loadOutboundsByDate(String date) async {
+  Future<void> _admVerification(int salePointId) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/auth/${salePointId}');
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+
+        final bool isAdmin = data['level'] == 1;
+
+        debugPrint(
+          '✅ SalePoint $salePointId é admin? $isAdmin (level: ${data['level']})',
+        );
+        _isAdmin = isAdmin;
+      } else {
+        debugPrint("❌ Erro ao verificar admin: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("❌ Erro na requisição de verificação de admin: $e");
+    }
+  }
+
+  Future<void> loadOutboundsByDate([String? date]) async {
+    print(" PRODUTOS DO SALE POINT: ${_products.value}");
     try {
       isLoading.value = true;
-      await _outboundService.loadOutboundsByDate(date);
+      List<Product>? list = await _outboundService.loadOutboundsByDate(date);
+      if (list != null) _products.value = list;
     } catch (e) {
       errorMessage.value = 'Erro ao carregar outbounds: $e';
       debugPrint('❌ Erro em loadOutboundsByDate: $e');
@@ -45,17 +126,14 @@ class SalePointController {
     }
   }
 
-  // ============================================================
-  // 🔥 MÉTODO ESTÁTICO PARA RECARREGAR (BOTTOM NAVIGATION)
-  // ============================================================
-  static Future<void> refreshOutbounds() async {
-    await OutboundService.refreshOutbounds();
+  Future<void> refreshOutbounds() async {
+    await OutboundService.refreshOutbounds(_salesPoints);
   }
 
   Future<bool> retornarProdutosAoEstoque() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
-    final salePointId = prefs.getInt('sale_point_id'); 
+    final salePointId = prefs.getInt('sale_point_id');
 
     if (token == null || salePointId == null) {
       debugPrint("❌ Token ou sale_point_id não encontrado");
@@ -75,7 +153,7 @@ class SalePointController {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        await _productDao.deleteAll();
+        await _productDao.deleteAllProducts2();
         OutboundService.saleProductsNotifier.value = [];
         return true;
       } else {
@@ -85,12 +163,9 @@ class SalePointController {
     } catch (e) {
       debugPrint("❌ Erro de conexão ao retornar produtos ao estoque: $e");
       return false;
-    } 
+    }
   }
 
-  // ============================================================
-  // 🔥 FAZER VENDA
-  // ============================================================
   Future<bool> fazerVenda(
     List<Product> products, {
     String description = '',
@@ -105,13 +180,15 @@ class SalePointController {
         return false;
       }
 
-      final invalidProducts = products.where((p) => p.id == null);
+      final invalidProducts = products.where((p) {
+        print("PRODUTO DA VENDA: ${p}");
+        return p.productId == null;
+      });
+
       if (invalidProducts.isNotEmpty) {
         errorMessage.value = 'Alguns produtos não têm ID válido';
         return false;
       }
-
-      debugPrint('🛒 Iniciando venda de ${products.length} produtos...');
 
       final success = await _orderService.createOrder(
         products: products,
@@ -156,30 +233,6 @@ class SalePointController {
     } catch (e) {
       debugPrint('❌ Erro ao buscar faturamento total: $e');
       return 0.0;
-    }
-  }
-
-  // ============================================================
-  // 🔥 BUSCAR TODOS OS PEDIDOS LOCAIS
-  // ============================================================
-  Future<List<Order>> getLocalOrders() async {
-    try {
-      return await _orderService.getLocalOrders();
-    } catch (e) {
-      debugPrint('❌ Erro ao buscar pedidos locais: $e');
-      return [];
-    }
-  }
-
-  // ============================================================
-  // 🔥 BUSCAR PEDIDOS POR DATA
-  // ============================================================
-  Future<List<Order>> getLocalOrdersByDate(String date) async {
-    try {
-      return await _orderService.getLocalOrdersByDate(date);
-    } catch (e) {
-      debugPrint('❌ Erro ao buscar pedidos por data: $e');
-      return [];
     }
   }
 

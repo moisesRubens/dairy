@@ -1,30 +1,33 @@
 import 'package:flutter/material.dart';
 import '../services/outbound_service.dart';
 import '../domain/outbound.dart';
+import '../controllers/sale_point_controller.dart';
 
-class SalesPointsPage extends StatefulWidget {
+class SalesPointsPage extends StatefulWidget 
+{
   const SalesPointsPage({super.key});
 
   @override
   State<SalesPointsPage> createState() => _SalesPointsPageState();
-
-  static Future<void> loadSalesPoints() async {
-    await OutboundService.refreshOutbounds();
-  }
 }
 
-class _SalesPointsPageState extends State<SalesPointsPage> {
+class _SalesPointsPageState extends State<SalesPointsPage> 
+{
+  late final SalePointController _salePointController;
   final Map<int, bool> _expandedMap = {};
 
   @override
-  void initState() {
+  void initState() 
+  {
     super.initState();
+    _salePointController = SalePointController();
     _loadData();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData() async 
+  {
     final service = OutboundService();
-    await service.loadAllOutbounds();
+    await service.loadAllOutbounds(_salePointController.salesPoints);
   }
 
   @override
@@ -41,7 +44,7 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
           children: [
             const SizedBox(height: 20),
             ValueListenableBuilder<List<Map<String, dynamic>>>(
-              valueListenable: OutboundService.allSalePointsNotifier,
+              valueListenable: _salePointController.salesPoints,
               builder: (context, allPoints, child) {
                 if (allPoints.isEmpty) {
                   return Container(
@@ -263,7 +266,7 @@ class _SalesPointsPageState extends State<SalesPointsPage> {
         border: Border.all(color: const Color(0xFFE0E0E0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.0),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),

@@ -1,33 +1,38 @@
 import 'package:flutter/foundation.dart';
-import '../domain/order.dart';
+import '../domain/order2.dart';
 import '../database/order_dao.dart';
 import '../services/order_service.dart';
 
-class OrderController {
+class OrderController 
+{
   final OrderDao _orderDao = OrderDao();
   final OrderService _orderService = OrderService();
 
-  // 🔥 NOTIFIER PARA ATUALIZAR A UI
-  final ValueNotifier<List<Order>> orders = ValueNotifier<List<Order>>([]);
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
   final ValueNotifier<String?> errorMessage = ValueNotifier<String?>(null);
+  final ValueNotifier<List<Order>> _orders = ValueNotifier<List<Order>>([]);
 
-  // ============================================================
-  // 🔥 CARREGAR PEDIDOS DO BANCO LOCAL
-  // ============================================================
-  Future<void> loadOrders() async {
+  ValueNotifier<List<Order>> get orders2 => _orders;
+
+
+  Future<void> loadOrders() async 
+  {
     try {
       isLoading.value = true;
       errorMessage.value = null;
       
       final ordersList = await _orderService.getLocalOrders();
-      orders.value = ordersList;
+      _orders.value = ordersList;
       
       debugPrint('📋 ${ordersList.length} pedidos carregados');
-    } catch (e) {
+    } 
+    catch (e) 
+    {
       errorMessage.value = 'Erro ao carregar pedidos: $e';
       debugPrint('❌ Erro ao carregar pedidos: $e');
-    } finally {
+    } 
+    finally 
+    {
       isLoading.value = false;
     }
   }
@@ -41,7 +46,7 @@ class OrderController {
       errorMessage.value = null;
       
       final ordersList = await _orderService.getLocalOrdersByDate(date);
-      orders.value = ordersList;
+      _orders.value = ordersList;
       
       debugPrint('📋 ${ordersList.length} pedidos carregados para data: $date');
     } catch (e) {
@@ -51,16 +56,17 @@ class OrderController {
       isLoading.value = false;
     }
   }
+  
 
-  // ============================================================
-  // 🔥 DELETAR PEDIDO
-  // ============================================================
-  Future<void> deleteOrder(String date, String description) async {
-    try {
-      await _orderDao.deleteOrder(date, description);
-      await loadOrders(); // Recarrega a lista
-      debugPrint('🗑️ Pedido deletado: $description - $date');
-    } catch (e) {
+  Future<void> deleteOrder(Order order) async 
+  {
+    try 
+    {
+      await _orderDao.deleteOrder(order.dateTime, order.description);
+      await loadOrders(); 
+    } 
+    catch (e) 
+    {
       debugPrint('❌ Erro ao deletar pedido: $e');
       rethrow;
     }
@@ -70,7 +76,7 @@ class OrderController {
   // 🔥 LIMPAR RECURSOS
   // ============================================================
   void dispose() {
-    orders.dispose();
+    _orders.dispose();
     isLoading.dispose();
     errorMessage.dispose();
   }
