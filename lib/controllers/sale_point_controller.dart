@@ -29,7 +29,10 @@ class SalePointController extends ChangeNotifier {
 
   final ValueNotifier<List<Map<String, dynamic>>> _salesPoints =
       ValueNotifier<List<Map<String, dynamic>>>([]);
-  final ValueNotifier<List<Product>> _products = ValueNotifier<List<Product>>([]);
+  final ValueNotifier<List<Product>> _products = ValueNotifier<List<Product>>(
+    [],
+  );
+  final ValueNotifier<List<Order>> _orders = ValueNotifier<List<Order>>([]);
 
   SalePointController() : _authService = AuthService() {
     getSalePointId();
@@ -37,6 +40,12 @@ class SalePointController extends ChangeNotifier {
 
   ValueNotifier<List<Map<String, dynamic>>> get salesPoints => _salesPoints;
   ValueNotifier<List<Product>> get products => _products;
+  ValueNotifier<List<Order>> get orders => _orders;
+
+  Future<bool> getOrders() async {
+    //_orders = _orderService.getLocalOrders();
+    return false;
+  }
 
   Future<bool> createOutbound(
     List<Product> productsToRetire,
@@ -106,7 +115,7 @@ class SalePointController extends ChangeNotifier {
     try {
       isLoading.value = true;
       List<Product>? list = await _outboundService.loadOutboundsByDate(date);
-      if(list != null) _products.value = list;
+      if (list != null) _products.value = list;
     } catch (e) {
       errorMessage.value = 'Erro ao carregar outbounds: $e';
       debugPrint('❌ Erro em loadOutboundsByDate: $e');

@@ -140,10 +140,7 @@ class OrderService {
       rethrow;
     }
   }
-
-  // ============================================================
-  // 🔥 BUSCAR PEDIDOS DO BANCO LOCAL
-  // ============================================================
+  
   Future<List<Order>> getLocalOrders() async {
     try {
       return await _orderDao.getAllOrders();

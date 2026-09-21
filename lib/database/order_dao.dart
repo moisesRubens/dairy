@@ -2,14 +2,14 @@ import 'package:dairy/domain/product.dart';
 import 'package:sqflite/sqflite.dart';
 import '../domain/order2.dart';
 import '../domain/order_item.dart';
-import 'db.dart';
+import 'database_provider.dart';
 
 class OrderDao {
-  final DB _db = DB.instance;
+  final DatabaseProvider _db = DatabaseProvider();
 
   
   Future<void> saveOrder(Order order) async {
-    final db = await _db.database;
+    final db = await _db.db;
 
     final existing = await db.query(
       'orders',
@@ -78,7 +78,7 @@ class OrderDao {
 
   Future<List<Order>> getAllOrders() async 
   {
-    final db = await _db.database;
+    final db = await _db.db;
 
     final results = await db.query(
       'orders',
@@ -115,7 +115,7 @@ class OrderDao {
   // 🔥 BUSCAR PEDIDOS POR DATA
   // ============================================================
   Future<List<Order>> getOrdersByDate(String date) async {
-    final db = await _db.database;
+    final db = await _db.db;
 
     final results = await db.query(
       'orders',
@@ -146,7 +146,7 @@ class OrderDao {
   
   Future<Order?> getOrderByDateAndDescription(String date, String description) async 
   {
-    final db = await _db.database;
+    final db = await _db.db;
 
     final results = await db.query(
       'orders',
@@ -180,7 +180,7 @@ class OrderDao {
 
   Future<void> deleteOrder(DateTime date, String? description) async 
   {
-    final db = await _db.database;
+    final db = await _db.db;
     
     final results = await db.query(
       'orders',
@@ -211,7 +211,7 @@ class OrderDao {
   // 🔥 DELETAR TODOS OS PEDIDOS
   // ============================================================
   Future<void> deleteAllOrders() async {
-    final db = await _db.database;
+    final db = await _db.db;
     await db.delete('order_items');
     await db.delete('orders');
     print('🗑️ Todos os pedidos deletados');
@@ -221,7 +221,7 @@ class OrderDao {
   // 🔥 CONTAR PEDIDOS
   // ============================================================
   Future<int> countOrders() async {
-    final db = await _db.database;
+    final db = await _db.db;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM orders');
     return Sqflite.firstIntValue(result) ?? 0;
   }
@@ -230,14 +230,14 @@ class OrderDao {
   // 🔥 CALCULAR FATURAMENTO TOTAL
   // ============================================================
   Future<double> getTotalRevenue() async {
-    final db = await _db.database;
+    final db = await _db.db;
     final result = await db.rawQuery('SELECT SUM(total_value) as total FROM orders WHERE status = 1');
     return (result.first['total'] as num?)?.toDouble() ?? 0.0;
   }
   
 
   Future<double> getRevenueByDate(String date) async {
-    final db = await _db.database;
+    final db = await _db.db;
   
     final List<Map<String, dynamic>> result = await db.query(
       'orders',

@@ -1,7 +1,6 @@
 import 'package:dairy/Enums/product_enum.dart';
 import 'package:sqflite/sqflite.dart';
 import '../domain/product.dart';
-import 'db.dart';
 import 'database_provider.dart';
 
 class ProductDao {
@@ -12,7 +11,7 @@ class ProductDao {
   /// - Se não existe, insere.
   /// Retorna o `id` local (SQLite) do produto.
   Future<int> saveProduct(Product product) async {
-    final db = await DB.instance.database;
+    final db = await _database.db;
 
     final map = <String, dynamic>{
       'produtoId': product.productId, // 👈 ID do backend
@@ -133,7 +132,7 @@ class ProductDao {
   }
 
   Future<int> insertProduct(Product product) async {
-    final db = await DB.instance.database;
+    final db = await _database.db;
 
     final Map<String, dynamic> map = {
       'produtoId': product.id,  // ← id do backend
@@ -188,7 +187,7 @@ class ProductDao {
 
   Future<List<Product>> getAllProducts() async 
   {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     final List<Map<String, dynamic>> results = await db.query(
       'produtos',
       orderBy: 'name ASC',
@@ -213,7 +212,7 @@ class ProductDao {
   
   Future<List<Product>?> getProductByLocalId(List<int> idsList) async 
   {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     final List<Map<String, dynamic>> results = await db.query(
       'produtos',
       where: 'id IN = ?',  
@@ -226,7 +225,7 @@ class ProductDao {
 
   Future<Product?> getProductByBackendId(int backendId) async 
   {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     
     final List<Map<String, dynamic>> results = await db.query(
       'produtos',
@@ -241,7 +240,7 @@ class ProductDao {
   // BUSCAR PRODUTOS POR NOME
   // ============================================================
   Future<List<Product>> searchProducts(String query) async {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     
     final List<Map<String, dynamic>> results = await db.query(
       'produtos',
@@ -257,7 +256,7 @@ class ProductDao {
   {
     try 
     {
-      final db = await DB.instance.database;
+      final db = await _database.db;
       final updates = <String, dynamic>
       {
         'name': product.name,
@@ -307,7 +306,7 @@ class ProductDao {
   // ============================================================
   Future<bool> deleteProduct(int backendId) async {
     try {
-      final db = await DB.instance.database;
+      final db = await _database.db;
       await db.delete(
         'produtos',
         where: 'produtoId = ?',
@@ -325,7 +324,7 @@ class ProductDao {
   // DELETAR TODOS
   // ============================================================
   Future<void> deleteAll() async {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     await db.delete('produtos');
     print('🗑️ Todos os produtos removidos!');
   }
@@ -334,7 +333,7 @@ class ProductDao {
   // CONTAR PRODUTOS
   // ============================================================
   Future<int> countProducts() async {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM produtos');
     return Sqflite.firstIntValue(result) ?? 0;
   }
@@ -343,7 +342,7 @@ class ProductDao {
   // VERIFICAR SE PRODUTO EXISTE
   // ============================================================
   Future<bool> productExists(int backendId) async {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     final result = await db.query(
       'produtos',
       where: 'produtoId = ?',
@@ -357,7 +356,7 @@ class ProductDao {
 // ============================================================
 Future<bool> updateQuantity(int backendId, int newAmount) async {
   try {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     
     // Primeiro encontra o ID local pelo backendId
     final existing = await db.query(
@@ -395,7 +394,7 @@ Future<bool> updateQuantity(int backendId, int newAmount) async {
 // ============================================================
 Future<bool> updateKg(int backendId, double newKg) async {
   try {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     
     final existing = await db.query(
       'produtos',
@@ -432,7 +431,7 @@ Future<bool> updateKg(int backendId, double newKg) async {
 // ============================================================
 Future<bool> updateLiters(int backendId, double newLiters) async {
   try {
-    final db = await DB.instance.database;
+    final db = await _database.db;
     
     final existing = await db.query(
       'produtos',

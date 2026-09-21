@@ -656,13 +656,9 @@ class HomePageState extends State<HomePage> {
                     : () => {
                         setState(() {
                           cart.map((c) {
-                            print("ITEM DO CART NO SETSTATE $c");
-                            print("LISTA NO SETSTATE $products");
                             final Product product = _salePointController.products.value.firstWhere(
                               (p) => p.productId == c["product_id"],
                             );
-                            print("PRODUTO NO SETSTATE $product E SUA QUANTIDADE ${product.quantity}");
-                            print("C QUANTITY NO SETSTATE ${c['quantity']} E NOVA QUANTIDADE ${product.quantity}");
                             product.quantity += c['quantity'];
                           }).toList();
                           cart.clear();

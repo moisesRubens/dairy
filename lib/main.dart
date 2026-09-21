@@ -7,13 +7,14 @@ import 'package:provider/provider.dart';
 import 'screens/home_page.dart';
 import 'screens/orders_page.dart';
 import 'services/auth_service.dart';
-import 'database/db.dart';
+import 'database/database_provider.dart';
 import 'domain/sale_point.dart';
 import 'controllers/auth_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await DB.instance.database;
+  await DatabaseProvider().db;
+  
   runApp(
     MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => SalePointController())],

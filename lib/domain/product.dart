@@ -8,6 +8,8 @@ class Product {
   static const String amountColumn = "amount" ;
   static const String kgColumn = "kg";
   static const String litersColumn = "liters";
+  static const String unitColumn = "unit";
+  static const String quantityColumn = "quantity";
   static const String dateColumn = "date";
 
   int? id;

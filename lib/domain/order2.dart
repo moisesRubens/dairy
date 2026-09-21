@@ -2,13 +2,7 @@ import 'package:dairy/domain/order_item.dart';
 import 'package:dairy/domain/product.dart';
 import 'package:flutter/foundation.dart';
 
-
-enum Status 
-{
-  pago,
-  pendente, 
-  desconto,
-}
+enum Status { pago, pendente, desconto }
 
 class Order {
   static const String idColumn = "id";
@@ -17,8 +11,9 @@ class Order {
   static const String totalValueColumn = "total_value";
   static const String statusColumn = "status";
   static const String dateTimeColumn = "date_time";
+  static const String discountValueColumn = "discount_value";
 
-  int? id; 
+  int? id;
   int? orderId;
   String? description;
   double? totalValue;
@@ -26,13 +21,20 @@ class Order {
   List<Product> _products = [];
   DateTime dateTime;
 
-  Order({required this.status, this.id, this.description, this.totalValue, List<Product>? products, this.orderId, DateTime? dateTime}): _products = products ?? [],
-  dateTime = dateTime ?? DateTime.now();
+  Order({
+    required this.status,
+    this.id,
+    this.description,
+    this.totalValue,
+    List<Product>? products,
+    this.orderId,
+    DateTime? dateTime,
+  }) : _products = products ?? [],
+       dateTime = dateTime ?? DateTime.now();
 
   List<Product> get products => _products;
 
-  void setProducts(List<Product> products)
-  {
+  void setProducts(List<Product> products) {
     _products = products;
   }
 
@@ -43,7 +45,11 @@ class Order {
       description: map['description'] ?? '',
       totalValue: (map['total_value'] ?? 0.0).toDouble(),
       dateTime: DateTime.parse(map['order_date']),
-      products: (map['items'] as List?)?.map((item) => Product.fromMap(item)).toList() ?? [],
+      products:
+          (map['items'] as List?)
+              ?.map((item) => Product.fromMap(item))
+              .toList() ??
+          [],
     );
   }
 
@@ -66,7 +72,7 @@ class Order {
       description: map['description'],
       totalValue: map['total_value'],
       dateTime: DateTime.parse(map['date_time']),
-      products: []
+      products: [],
     );
   }
 
@@ -76,7 +82,7 @@ class Order {
       'status': status,
       'description': description,
       'total_value': totalValue,
-      'date_time': dateTime
+      'date_time': dateTime,
     };
   }
 }
